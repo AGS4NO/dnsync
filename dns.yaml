@@ -42,11 +42,12 @@ zones:
         content: "v=spf1 include:_spf.example.com ~all"
         ttl: 3600
 
-      # SRV record
+      # SRV record (content = "weight port target", priority is separate)
       - name: _sip._tcp.test
         type: SRV
-        content: "10 60 5060 sip.dnsync.net"
+        content: "60 5060 sip.dnsync.net"
         ttl: 3600
+        priority: 10
 
       # NS record (subdomain delegation)
       - name: delegated-test
