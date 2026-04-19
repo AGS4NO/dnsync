@@ -1,0 +1,36 @@
+zones:
+  - zone: example.com
+    manage: full
+    records:
+      - name: "@"
+        type: A
+        content: 192.0.2.1
+        ttl: 3600
+      - name: www
+        type: CNAME
+        content: example.com
+        ttl: 3600
+
+  - zone: other.org
+    manage: partial
+    records:
+      - name: api
+        type: A
+        content: 203.0.113.5
+        ttl: 300
+
+  - zone: internal.dev
+    manage: full
+    records:
+      - name: "@"
+        type: A
+        content: 10.0.0.1
+        ttl: 60
+      - name: db
+        type: A
+        content: 10.0.0.2
+        ttl: 60
+      - name: cache
+        type: A
+        content: 10.0.0.3
+        ttl: 60

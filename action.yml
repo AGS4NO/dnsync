@@ -1,0 +1,30 @@
+name: 'dnsync'
+description: 'Manage DNS records at DNSimple from a declarative YAML config file'
+author: 'ags4no'
+
+branding:
+  icon: 'globe'
+  color: 'blue'
+
+inputs:
+  dnsimple-token:
+    description: 'DNSimple API token'
+    required: true
+  dnsimple-account-id:
+    description: 'DNSimple account ID'
+    required: true
+  config-file:
+    description: 'Path to the DNS config YAML file'
+    default: 'dns.yaml'
+  mode:
+    description: '"plan" to preview changes (posts PR comment), "apply" to execute changes'
+    default: 'plan'
+
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+  env:
+    INPUT_DNSIMPLE_TOKEN: ${{ inputs.dnsimple-token }}
+    INPUT_DNSIMPLE_ACCOUNT_ID: ${{ inputs.dnsimple-account-id }}
+    INPUT_CONFIG_FILE: ${{ inputs.config-file }}
+    INPUT_MODE: ${{ inputs.mode }}
