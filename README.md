@@ -59,7 +59,7 @@ on:
     paths: [dns.yaml]
 
 permissions:
-  contents: read
+  contents: write       # Required for committing state file after apply
   pull-requests: write
 
 jobs:
@@ -134,6 +134,22 @@ records:
     priority: 20
 ```
 
+## State Tracking
+
+dnsync uses a state file (`.dnsync.state.json`) to track which records it has previously applied. This is critical for **partial** management mode:
+
+- When you remove a record from your config, dnsync checks the state file to determine if it previously managed that record
+- If the record was previously managed, dnsync deletes it from DNS
+- If the record was never managed by dnsync, it's left untouched
+
+The state file is automatically committed and pushed to the repo after each successful `apply` run. **You should commit this file to your repo** and not add it to `.gitignore`.
+
+In **full** management mode, state tracking is less critical since all unmanaged records are deleted regardless. However, the state file is still maintained for consistency.
+
+### First Run
+
+On the first run (no state file exists), dnsync assumes it has not previously managed any records. In partial mode, this means it will only create and update — never delete — until the state file is established.
+
 ## Action Inputs
 
 | Input | Required | Default | Description |
@@ -142,6 +158,7 @@ records:
 | `dnsimple-account-id` | Yes | | DNSimple account ID |
 | `config-file` | No | `dns.yaml` | Path to the config file |
 | `mode` | No | `plan` | `plan` to preview, `apply` to execute |
+| `state-file` | No | `.dnsync.state.json` | Path to the state tracking file |
 
 ## Testing
 
@@ -163,6 +180,7 @@ go test -v ./...
 go test -v ./internal/config/
 go test -v ./internal/diff/
 go test -v ./internal/plan/
+go test -v ./internal/state/
 ```
 
 ### Test Coverage
@@ -183,8 +201,9 @@ go tool cover -func=coverage.out
 | Package | What's covered |
 |---------|---------------|
 | `internal/config` | YAML parsing, validation, default values, error cases, record normalization |
-| `internal/diff` | Create/update/delete detection, full vs partial mode, immutable record protection, multi-value records |
+| `internal/diff` | Create/update/delete detection, full vs partial mode, state-based deletion in partial mode, immutable record protection, multi-value records |
 | `internal/plan` | Markdown and text formatting, multi-zone output, edge cases |
+| `internal/state` | State file load/save, config-to-state conversion, deterministic serialization, missing file handling |
 
 ### Integration Testing (Manual)
 

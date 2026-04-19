@@ -2,11 +2,66 @@ zones:
   - zone: dnsync.net
     manage: partial
     records:
+      # A record
       - name: test
         type: A
         content: 192.0.2.1
         ttl: 3600
+
+      # AAAA record (IPv6)
+      - name: test
+        type: AAAA
+        content: "2001:db8::1"
+        ttl: 3600
+
+      # CNAME record
+      - name: www-test
+        type: CNAME
+        content: test.dnsync.net
+        ttl: 3600
+
+      # MX records (multiple values, priority)
+      - name: test
+        type: MX
+        content: mail1.dnsync.net
+        ttl: 3600
+        priority: 10
+      - name: test
+        type: MX
+        content: mail2.dnsync.net
+        ttl: 3600
+        priority: 20
+
+      # TXT records (multiple values)
       - name: test
         type: TXT
         content: "dnsync-managed-record"
+        ttl: 3600
+      - name: test
+        type: TXT
+        content: "v=spf1 include:_spf.example.com ~all"
+        ttl: 3600
+
+      # SRV record
+      - name: _sip._tcp.test
+        type: SRV
+        content: "10 60 5060 sip.dnsync.net"
+        ttl: 3600
+
+      # NS record (subdomain delegation)
+      - name: delegated-test
+        type: NS
+        content: ns1.example.com
+        ttl: 3600
+
+      # ALIAS/ANAME record (DNSimple-specific, like CNAME at apex)
+      - name: alias-test
+        type: ALIAS
+        content: test.dnsync.net
+        ttl: 3600
+
+      # CAA record (certificate authority authorization)
+      - name: test
+        type: CAA
+        content: "0 issue letsencrypt.org"
         ttl: 3600

@@ -4,12 +4,15 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
 
 	"github.com/ags4no/dnsync/internal/config"
 	"github.com/ags4no/dnsync/internal/diff"
 	dns "github.com/ags4no/dnsync/internal/dnsimple"
 	ghclient "github.com/ags4no/dnsync/internal/github"
 	"github.com/ags4no/dnsync/internal/plan"
+	"github.com/ags4no/dnsync/internal/state"
 )
 
 func main() {
@@ -25,6 +28,7 @@ func run() error {
 	// Read action inputs from environment
 	mode := getEnv("INPUT_MODE", "plan")
 	configFile := getEnv("INPUT_CONFIG_FILE", "dns.yaml")
+	stateFile := getEnv("INPUT_STATE_FILE", ".dnsync.state.json")
 	dnsimpleToken := os.Getenv("INPUT_DNSIMPLE_TOKEN")
 	dnsimpleAccountID := os.Getenv("INPUT_DNSIMPLE_ACCOUNT_ID")
 
@@ -44,6 +48,12 @@ func run() error {
 		return fmt.Errorf("loading config: %w", err)
 	}
 
+	// Load previous state
+	st, err := state.Load(stateFile)
+	if err != nil {
+		return fmt.Errorf("loading state: %w", err)
+	}
+
 	// Initialize DNSimple client
 	dnsClient := dns.NewClient(dnsimpleToken, dnsimpleAccountID)
 
@@ -57,7 +67,8 @@ func run() error {
 			return fmt.Errorf("fetching live records for %s: %w", zone.Zone, err)
 		}
 
-		cs := diff.Compute(zone.Zone, zone.Manage, zone.Records, live)
+		prevRecords := st.GetZoneRecords(zone.Zone)
+		cs := diff.Compute(zone.Zone, zone.Manage, zone.Records, live, prevRecords)
 		changesets = append(changesets, cs)
 	}
 
@@ -68,7 +79,7 @@ func run() error {
 	case "plan":
 		return runPlan(ctx, summary)
 	case "apply":
-		return runApply(ctx, dnsClient, summary, changesets)
+		return runApply(ctx, dnsClient, summary, changesets, cfg, stateFile)
 	}
 
 	return nil
@@ -95,17 +106,14 @@ func runPlan(ctx context.Context, summary plan.Summary) error {
 		fmt.Printf("Posted plan comment to PR #%d\n", prNumber)
 	}
 
-	// Exit non-zero if there are changes (useful as a required status check)
 	if summary.HasChanges {
 		fmt.Println("DNS changes detected. Review the plan above.")
-		// Note: we don't os.Exit(1) here — the caller can check the output.
-		// For status check gating, the workflow can use `if: success()` conditions.
 	}
 
 	return nil
 }
 
-func runApply(ctx context.Context, dnsClient *dns.Client, summary plan.Summary, changesets []diff.Changeset) error {
+func runApply(ctx context.Context, dnsClient *dns.Client, summary plan.Summary, changesets []diff.Changeset, cfg *config.Config, stateFile string) error {
 	if !summary.HasChanges {
 		fmt.Println("No DNS changes to apply.")
 		return nil
@@ -125,7 +133,68 @@ func runApply(ctx context.Context, dnsClient *dns.Client, summary plan.Summary, 
 		fmt.Printf("Successfully applied changes to %s\n", cs.Zone)
 	}
 
+	// Update and save state
+	st := state.New()
+	st.UpdateFromConfig(cfg)
+	if err := st.Save(stateFile); err != nil {
+		return fmt.Errorf("saving state: %w", err)
+	}
+	fmt.Printf("State saved to %s\n", stateFile)
+
+	// Commit and push state file
+	if err := commitStateFile(stateFile); err != nil {
+		return fmt.Errorf("committing state file: %w", err)
+	}
+
 	fmt.Println("All DNS changes applied successfully.")
+	return nil
+}
+
+func commitStateFile(stateFile string) error {
+	absPath, err := filepath.Abs(stateFile)
+	if err != nil {
+		return fmt.Errorf("resolving state file path: %w", err)
+	}
+
+	// Configure git for the GitHub Actions bot
+	commands := [][]string{
+		{"git", "config", "user.name", "github-actions[bot]"},
+		{"git", "config", "user.email", "github-actions[bot]@users.noreply.github.com"},
+		{"git", "add", absPath},
+	}
+
+	for _, args := range commands {
+		cmd := exec.Command(args[0], args[1:]...)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("running %v: %w", args, err)
+		}
+	}
+
+	// Check if there are staged changes to commit
+	cmd := exec.Command("git", "diff", "--cached", "--quiet")
+	if err := cmd.Run(); err != nil {
+		// Exit code 1 means there are changes — commit them
+		commitCmd := exec.Command("git", "commit", "-m", "chore: update dnsync state [skip ci]")
+		commitCmd.Stdout = os.Stdout
+		commitCmd.Stderr = os.Stderr
+		if err := commitCmd.Run(); err != nil {
+			return fmt.Errorf("committing state: %w", err)
+		}
+
+		pushCmd := exec.Command("git", "push")
+		pushCmd.Stdout = os.Stdout
+		pushCmd.Stderr = os.Stderr
+		if err := pushCmd.Run(); err != nil {
+			return fmt.Errorf("pushing state: %w", err)
+		}
+
+		fmt.Println("State file committed and pushed.")
+	} else {
+		fmt.Println("State file unchanged, nothing to commit.")
+	}
+
 	return nil
 }
 

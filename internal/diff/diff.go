@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/ags4no/dnsync/internal/config"
+	"github.com/ags4no/dnsync/internal/state"
 )
 
 // Action represents the type of change to apply.
@@ -30,6 +31,11 @@ type LiveRecord struct {
 // RecordKey returns the matching key for a live record.
 func (r LiveRecord) RecordKey() string {
 	return r.Name + "/" + strings.ToUpper(r.Type)
+}
+
+// ContentKey returns a key including content for multi-value matching.
+func (r LiveRecord) ContentKey() string {
+	return r.Name + "/" + strings.ToUpper(r.Type) + "/" + r.Content
 }
 
 // Change represents a single DNS record change.
@@ -71,7 +77,9 @@ func isImmutable(r LiveRecord) bool {
 }
 
 // Compute calculates the changeset needed to reconcile desired records with live records.
-func Compute(zone string, manage config.ManageMode, desired []config.Record, live []LiveRecord) Changeset {
+// previousState is used in partial mode to detect records removed from config that should
+// be deleted. Pass nil if there is no previous state.
+func Compute(zone string, manage config.ManageMode, desired []config.Record, live []LiveRecord, previousState []state.Record) Changeset {
 	cs := Changeset{
 		Zone:   zone,
 		Manage: manage,
@@ -84,12 +92,15 @@ func Compute(zone string, manage config.ManageMode, desired []config.Record, liv
 		matched bool
 	}
 	liveByKey := make(map[string][]*liveEntry)
+	liveByContentKey := make(map[string]*liveEntry)
 	for _, lr := range live {
 		key := lr.RecordKey()
-		liveByKey[key] = append(liveByKey[key], &liveEntry{record: lr})
+		entry := &liveEntry{record: lr}
+		liveByKey[key] = append(liveByKey[key], entry)
+		liveByContentKey[lr.ContentKey()] = entry
 	}
 
-	// Process desired records
+	// Process desired records — find creates and updates
 	for _, dr := range desired {
 		key := dr.RecordKey()
 		entries := liveByKey[key]
@@ -150,8 +161,10 @@ func Compute(zone string, manage config.ManageMode, desired []config.Record, liv
 		}
 	}
 
-	// In full mode, delete unmatched live records (except immutable ones)
-	if manage == config.ManageFull {
+	// Determine which unmatched live records to delete
+	switch manage {
+	case config.ManageFull:
+		// Delete all unmatched live records (except immutable)
 		for _, entries := range liveByKey {
 			for _, e := range entries {
 				if !e.matched && !isImmutable(e.record) {
@@ -161,6 +174,33 @@ func Compute(zone string, manage config.ManageMode, desired []config.Record, liv
 						LiveID:  e.record.ID,
 						Current: &e.record,
 					})
+				}
+			}
+		}
+
+	case config.ManagePartial:
+		// Only delete records that were previously managed (in state) but
+		// are no longer in the config. This detects intentional removals.
+		if previousState != nil {
+			// Build a set of desired content keys
+			desiredContentKeys := make(map[string]bool)
+			for _, dr := range desired {
+				desiredContentKeys[dr.NormalizedName()+"/"+strings.ToUpper(dr.Type)+"/"+dr.Content] = true
+			}
+
+			for _, sr := range previousState {
+				contentKey := sr.ContentKey()
+				// Record was in state but is no longer in config — delete it
+				if !desiredContentKeys[contentKey] {
+					if entry, ok := liveByContentKey[contentKey]; ok && !entry.matched && !isImmutable(entry.record) {
+						entry.matched = true
+						cs.Changes = append(cs.Changes, Change{
+							Action:  ActionDelete,
+							Zone:    zone,
+							LiveID:  entry.record.ID,
+							Current: &entry.record,
+						})
+					}
 				}
 			}
 		}
