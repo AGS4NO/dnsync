@@ -17,7 +17,7 @@ inputs:
     description: 'Path to the DNS config YAML file'
     default: 'dns.yaml'
   mode:
-    description: '"plan" to preview changes (posts PR comment), "apply" to execute changes'
+    description: '"plan" to preview changes, "apply" to execute, "reconcile" to clean up orphaned records'
     default: 'plan'
   state-file:
     description: 'Path to the state file that tracks managed records'
