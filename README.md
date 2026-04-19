@@ -68,7 +68,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: ags4no/dnsync@v1
+      - uses: ags4no/dnsync@v0.1.0
         with:
           dnsimple-token: ${{ secrets.DNSIMPLE_TOKEN }}
           dnsimple-account-id: ${{ secrets.DNSIMPLE_ACCOUNT_ID }}
