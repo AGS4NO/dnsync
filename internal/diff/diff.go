@@ -36,7 +36,7 @@ func (r LiveRecord) RecordKey() string {
 // ContentKey returns a key including content for multi-value matching.
 // TXT content is normalized to strip surrounding quotes added by DNSimple.
 func (r LiveRecord) ContentKey() string {
-	return r.Name + "/" + strings.ToUpper(r.Type) + "/" + normalizeTXTContent(r.Type, r.Content)
+	return r.Name + "/" + strings.ToUpper(r.Type) + "/" + normalizeContent(r.Type, r.Content)
 }
 
 // Change represents a single DNS record change.
@@ -120,10 +120,10 @@ func Compute(zone string, manage config.ManageMode, desired []config.Record, liv
 		// TXT content is normalized because DNSimple wraps TXT values in quotes.
 		var exactMatch *liveEntry
 		var updateCandidate *liveEntry
-		desiredContent := normalizeTXTContent(dr.Type, dr.Content)
+		desiredContent := normalizeContent(dr.Type, dr.Content)
 
 		for _, e := range entries {
-			liveContent := normalizeTXTContent(e.record.Type, e.record.Content)
+			liveContent := normalizeContent(e.record.Type, e.record.Content)
 			if liveContent == desiredContent {
 				exactMatch = e
 				break
@@ -224,13 +224,16 @@ func isMultiValueType(recordType string) bool {
 	return false
 }
 
-// normalizeTXTContent strips surrounding double quotes from TXT record content.
-// DNSimple returns TXT content wrapped in quotes (e.g., `"v=spf1 -all"`) but
-// users write it without quotes in config. This ensures they match during comparison.
-func normalizeTXTContent(recordType, content string) string {
-	if strings.ToUpper(recordType) == "TXT" {
+// normalizeContent strips embedded quotes that DNSimple adds to certain record types.
+// TXT: DNSimple wraps the entire value in quotes, e.g., `"v=spf1 -all"`
+// CAA: DNSimple wraps the tag value in quotes, e.g., `0 issue "letsencrypt.org"`
+func normalizeContent(recordType, content string) string {
+	switch strings.ToUpper(recordType) {
+	case "TXT":
 		content = strings.TrimPrefix(content, "\"")
 		content = strings.TrimSuffix(content, "\"")
+	case "CAA":
+		content = strings.ReplaceAll(content, "\"", "")
 	}
 	return content
 }
