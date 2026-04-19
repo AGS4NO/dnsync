@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"github.com/ags4no/dnsync/internal/config"
@@ -148,7 +146,8 @@ func runApply(ctx context.Context, dnsClient *dns.Client, summary plan.Summary, 
 		if err := st.Save(stateFile); err != nil {
 			return fmt.Errorf("saving state: %w", err)
 		}
-		return commitStateFile(stateFile)
+		fmt.Printf("State saved to %s\n", stateFile)
+		return nil
 	}
 
 	fmt.Print(plan.FormatText(summary))
@@ -172,11 +171,6 @@ func runApply(ctx context.Context, dnsClient *dns.Client, summary plan.Summary, 
 		return fmt.Errorf("saving state: %w", err)
 	}
 	fmt.Printf("State saved to %s\n", stateFile)
-
-	// Commit and push state file
-	if err := commitStateFile(stateFile); err != nil {
-		return fmt.Errorf("committing state file: %w", err)
-	}
 
 	fmt.Println("All DNS changes applied successfully.")
 	return nil
@@ -256,65 +250,8 @@ func runReconcile(ctx context.Context, dnsClient *dns.Client, cfg *config.Config
 		return fmt.Errorf("saving state: %w", err)
 	}
 
-	if err := commitStateFile(stateFile); err != nil {
-		return fmt.Errorf("committing state file: %w", err)
-	}
-
+	fmt.Printf("State saved to %s\n", stateFile)
 	fmt.Println("Reconciliation complete.")
-	return nil
-}
-
-func commitStateFile(stateFile string) error {
-	// Only commit/push when running inside GitHub Actions
-	if os.Getenv("GITHUB_ACTIONS") != "true" {
-		fmt.Println("Not running in GitHub Actions, skipping state file commit.")
-		return nil
-	}
-
-	absPath, err := filepath.Abs(stateFile)
-	if err != nil {
-		return fmt.Errorf("resolving state file path: %w", err)
-	}
-
-	// Configure git for the GitHub Actions bot
-	commands := [][]string{
-		{"git", "config", "user.name", "github-actions[bot]"},
-		{"git", "config", "user.email", "github-actions[bot]@users.noreply.github.com"},
-		{"git", "add", absPath},
-	}
-
-	for _, args := range commands {
-		cmd := exec.Command(args[0], args[1:]...)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("running %v: %w", args, err)
-		}
-	}
-
-	// Check if there are staged changes to commit
-	cmd := exec.Command("git", "diff", "--cached", "--quiet")
-	if err := cmd.Run(); err != nil {
-		// Exit code 1 means there are changes — commit them
-		commitCmd := exec.Command("git", "commit", "-m", "chore: update dnsync state [skip ci]")
-		commitCmd.Stdout = os.Stdout
-		commitCmd.Stderr = os.Stderr
-		if err := commitCmd.Run(); err != nil {
-			return fmt.Errorf("committing state: %w", err)
-		}
-
-		pushCmd := exec.Command("git", "push")
-		pushCmd.Stdout = os.Stdout
-		pushCmd.Stderr = os.Stderr
-		if err := pushCmd.Run(); err != nil {
-			return fmt.Errorf("pushing state: %w", err)
-		}
-
-		fmt.Println("State file committed and pushed.")
-	} else {
-		fmt.Println("State file unchanged, nothing to commit.")
-	}
-
 	return nil
 }
 
