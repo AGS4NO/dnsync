@@ -118,6 +118,34 @@ In your repository settings, add:
 | `ttl` | int | No | Time to live in seconds |
 | `priority` | int | No | Priority (for MX, SRV records) |
 
+### Records with Priority (MX, SRV)
+
+MX and SRV records use a separate `priority` field — do **not** include the priority value inside `content`.
+
+**MX records** — `content` is the mail server hostname, `priority` is separate:
+
+```yaml
+records:
+  - name: "@"
+    type: MX
+    content: mail.example.com            # just the hostname
+    ttl: 3600
+    priority: 10
+```
+
+**SRV records** — `content` is `"weight port target"` (space-separated), `priority` is separate:
+
+```yaml
+records:
+  - name: _sip._tcp
+    type: SRV
+    content: "60 5060 sip.example.com"   # weight, port, target
+    ttl: 3600
+    priority: 10
+```
+
+This matches how DNSimple's API handles these record types.
+
 ### Multi-value Records
 
 Record types that support multiple values for the same name (MX, TXT, SRV, NS) can be specified multiple times:
