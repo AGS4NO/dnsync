@@ -232,34 +232,71 @@ go tool cover -func=coverage.out
 | `internal/diff` | Create/update/delete detection, full vs partial mode, state-based deletion in partial mode, immutable record protection, multi-value records |
 | `internal/plan` | Markdown and text formatting, multi-zone output, edge cases |
 | `internal/state` | State file load/save, config-to-state conversion, deterministic serialization, missing file handling |
+| `internal/validate` | Duplicate detection, CNAME conflicts, content format validation (A/AAAA/MX/SRV/CAA/CNAME), TXT normalization |
 
-### Integration Testing (Manual)
+### Local CLI Testing
 
-To test against a real DNSimple account:
+You can build and run dnsync as a standalone CLI to test against a real DNSimple account without GitHub Actions.
 
-1. Create a sandbox account at [DNSimple](https://sandbox.dnsimple.com)
-2. Set environment variables:
-   ```bash
-   export INPUT_DNSIMPLE_TOKEN="your-sandbox-token"
-   export INPUT_DNSIMPLE_ACCOUNT_ID="your-account-id"
-   export INPUT_CONFIG_FILE="testdata/partial_zone.yaml"
-   export INPUT_MODE="plan"
-   ```
-3. Run the binary:
-   ```bash
-   go build -o dnsync . && ./dnsync
-   ```
+**Build the binary:**
+
+```bash
+go build -o dnsync .
+```
+
+**Set required environment variables:**
+
+```bash
+export INPUT_DNSIMPLE_TOKEN="your-api-token"
+export INPUT_DNSIMPLE_ACCOUNT_ID="your-account-id"
+export INPUT_CONFIG_FILE="dns.yaml"
+export INPUT_STATE_FILE=".dnsync.state.json"
+```
+
+**Plan** — preview changes without applying:
+
+```bash
+INPUT_MODE=plan ./dnsync
+```
+
+**Apply** — execute the changes:
+
+```bash
+INPUT_MODE=apply ./dnsync
+```
+
+**Reconcile** — find and remove orphaned records from previous failed runs:
+
+```bash
+INPUT_MODE=reconcile ./dnsync
+```
+
+When running locally (outside GitHub Actions), the PR comment posting will be skipped automatically since `GITHUB_REF` is not set. The plan output will still print to stdout.
+
+Note: the git commit/push of the state file will also run locally. To avoid this, you can manually save the state file and skip the commit by hitting `Ctrl+C` after "State saved" prints, or temporarily modify the state file path to a throwaway location:
+
+```bash
+INPUT_STATE_FILE="/tmp/dnsync-test-state.json" INPUT_MODE=apply ./dnsync
+```
+
+### Testing with a Specific Config
+
+You can point to any config file, including the test fixtures:
+
+```bash
+INPUT_CONFIG_FILE="testdata/partial_zone.yaml" INPUT_MODE=plan ./dnsync
+```
 
 ### Docker Build Test
 
 ```bash
 docker build -t dnsync .
 docker run --rm \
-  -e INPUT_DNSIMPLE_TOKEN="test" \
-  -e INPUT_DNSIMPLE_ACCOUNT_ID="12345" \
+  -e INPUT_DNSIMPLE_TOKEN="your-api-token" \
+  -e INPUT_DNSIMPLE_ACCOUNT_ID="your-account-id" \
   -e INPUT_CONFIG_FILE="dns.yaml" \
   -e INPUT_MODE="plan" \
-  -v $(pwd)/testdata/partial_zone.yaml:/dns.yaml \
+  -v $(pwd)/dns.yaml:/dns.yaml \
   dnsync
 ```
 

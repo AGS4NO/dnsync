@@ -265,6 +265,12 @@ func runReconcile(ctx context.Context, dnsClient *dns.Client, cfg *config.Config
 }
 
 func commitStateFile(stateFile string) error {
+	// Only commit/push when running inside GitHub Actions
+	if os.Getenv("GITHUB_ACTIONS") != "true" {
+		fmt.Println("Not running in GitHub Actions, skipping state file commit.")
+		return nil
+	}
+
 	absPath, err := filepath.Abs(stateFile)
 	if err != nil {
 		return fmt.Errorf("resolving state file path: %w", err)
