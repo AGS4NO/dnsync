@@ -1,0 +1,12 @@
+zones:
+  - zone: dnsync.net
+    manage: partial
+    records:
+      - name: test
+        type: A
+        content: 192.0.2.1
+        ttl: 3600
+      - name: test
+        type: TXT
+        content: "dnsync-managed-record"
+        ttl: 3600

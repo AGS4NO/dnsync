@@ -1,0 +1,12 @@
+zones:
+  - zone: example.com
+    manage: partial
+    records:
+      - name: api
+        type: A
+        content: 203.0.113.5
+        ttl: 300
+      - name: staging
+        type: CNAME
+        content: staging.example.com
+        ttl: 300

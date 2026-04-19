@@ -1,0 +1,26 @@
+zones:
+  - zone: example.com
+    manage: full
+    records:
+      - name: "@"
+        type: A
+        content: 192.0.2.1
+        ttl: 3600
+      - name: www
+        type: CNAME
+        content: example.com
+        ttl: 3600
+      - name: "@"
+        type: MX
+        content: mail.example.com
+        ttl: 3600
+        priority: 10
+      - name: "@"
+        type: MX
+        content: mail2.example.com
+        ttl: 3600
+        priority: 20
+      - name: "@"
+        type: TXT
+        content: "v=spf1 include:_spf.google.com ~all"
+        ttl: 3600
