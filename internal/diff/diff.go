@@ -141,8 +141,8 @@ func Compute(zone string, manage config.ManageMode, desired []config.Record, liv
 					Current: &exactMatch.record,
 				})
 			}
-		} else if updateCandidate != nil {
-			// Content differs — update
+		} else if updateCandidate != nil && !isMultiValueType(dr.Type) {
+			// Content differs and this is a single-value type — update in place
 			updateCandidate.matched = true
 			cs.Changes = append(cs.Changes, Change{
 				Action:  ActionUpdate,
@@ -152,7 +152,7 @@ func Compute(zone string, manage config.ManageMode, desired []config.Record, liv
 				Current: &updateCandidate.record,
 			})
 		} else {
-			// All existing entries matched already — create a new one
+			// Multi-value type with new content, or all entries already matched — create
 			cs.Changes = append(cs.Changes, Change{
 				Action: ActionCreate,
 				Zone:   zone,
@@ -207,6 +207,17 @@ func Compute(zone string, manage config.ManageMode, desired []config.Record, liv
 	}
 
 	return cs
+}
+
+// isMultiValueType returns true for record types that can have multiple
+// records with the same name (e.g., MX, TXT, SRV, NS). For these types,
+// a content mismatch should result in a create, not an update.
+func isMultiValueType(recordType string) bool {
+	switch strings.ToUpper(recordType) {
+	case "MX", "TXT", "SRV", "NS":
+		return true
+	}
+	return false
 }
 
 func needsUpdate(desired config.Record, live LiveRecord) bool {

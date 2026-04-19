@@ -215,6 +215,48 @@ func TestCompute_PartialMode_StateRecordAlreadyGoneFromLive(t *testing.T) {
 	}
 }
 
+func TestCompute_MultiValueType_CreatesInsteadOfUpdating(t *testing.T) {
+	// Adding a second TXT record with different content should CREATE, not UPDATE the existing one
+	desired := []config.Record{
+		{Name: "test", Type: "TXT", Content: "first-value", TTL: 3600},
+		{Name: "test", Type: "TXT", Content: "second-value", TTL: 3600},
+	}
+	live := []LiveRecord{
+		{ID: 1, Name: "test", Type: "TXT", Content: "first-value", TTL: 3600},
+	}
+
+	cs := Compute("example.com", config.ManagePartial, desired, live, nil)
+
+	if len(cs.Changes) != 1 {
+		t.Fatalf("expected 1 change, got %d", len(cs.Changes))
+	}
+	if cs.Changes[0].Action != ActionCreate {
+		t.Errorf("expected create for new TXT value, got %s", cs.Changes[0].Action)
+	}
+	if cs.Changes[0].Record.Content != "second-value" {
+		t.Errorf("expected second-value, got %s", cs.Changes[0].Record.Content)
+	}
+}
+
+func TestCompute_SingleValueType_UpdatesContent(t *testing.T) {
+	// Changing an A record's content should UPDATE, not create a second one
+	desired := []config.Record{
+		{Name: "www", Type: "A", Content: "192.0.2.2", TTL: 300},
+	}
+	live := []LiveRecord{
+		{ID: 1, Name: "www", Type: "A", Content: "192.0.2.1", TTL: 300},
+	}
+
+	cs := Compute("example.com", config.ManagePartial, desired, live, nil)
+
+	if len(cs.Changes) != 1 {
+		t.Fatalf("expected 1 change, got %d", len(cs.Changes))
+	}
+	if cs.Changes[0].Action != ActionUpdate {
+		t.Errorf("expected update for A record content change, got %s", cs.Changes[0].Action)
+	}
+}
+
 func TestCompute_FullMode_ProtectsSOA(t *testing.T) {
 	desired := []config.Record{}
 	live := []LiveRecord{
