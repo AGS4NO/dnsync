@@ -104,9 +104,34 @@ In your repository settings, add:
 | Mode | Records in file & zone | Records only in file | Records only in zone |
 |------|----------------------|---------------------|---------------------|
 | `full` | Update if different | Create | **Delete** |
-| `partial` | Update if different | Create | Leave alone |
+| `partial` | Update if different | Create | Leave alone (unless previously managed) |
 
-**Important**: In `full` mode, SOA records and NS records at the zone apex are never deleted regardless of configuration.
+#### Full mode
+
+Use `full` when dnsync should be the **single source of truth** for the entire zone. Any record in the zone that is not in your config file will be deleted on the next apply (except SOA and apex NS records, which are always protected).
+
+This is the right choice when:
+- dnsync is the only tool managing this zone
+- You want strict enforcement — no manual edits should persist
+- You want a complete, auditable record of every DNS entry in git
+
+**Warning**: If other tools or team members manage records in this zone outside of dnsync, `full` mode will delete their records.
+
+#### Partial mode
+
+Use `partial` when dnsync should only manage **specific records** in the zone, leaving everything else untouched. dnsync tracks which records it has previously applied via a [state file](#state-tracking), so it can distinguish between:
+
+- **Records it manages** — created, updated, or deleted based on your config
+- **Records it doesn't manage** — left completely alone, even if dnsync has never seen them
+
+This is the right choice when:
+- Other tools or team members also manage records in this zone
+- You only want to automate a subset of your DNS records
+- You want a safer default that won't accidentally delete anything unexpected
+
+When you remove a record from your config in partial mode, dnsync checks the state file and deletes it if it was previously managed. Records that were never managed by dnsync are never touched.
+
+On the first run (no state file), partial mode will only create and update — never delete — until the state file is established.
 
 ### Record Configuration
 
@@ -164,19 +189,9 @@ records:
 
 ## State Tracking
 
-dnsync uses a state file (`.dnsync.state.json`) to track which records it has previously applied. This is critical for **partial** management mode:
+dnsync uses a state file (`.dnsync.state.json`) to track which records it has previously applied. The state file is automatically committed and pushed to the repo after each successful `apply` run. **You should commit this file to your repo** and not add it to `.gitignore`.
 
-- When you remove a record from your config, dnsync checks the state file to determine if it previously managed that record
-- If the record was previously managed, dnsync deletes it from DNS
-- If the record was never managed by dnsync, it's left untouched
-
-The state file is automatically committed and pushed to the repo after each successful `apply` run. **You should commit this file to your repo** and not add it to `.gitignore`.
-
-In **full** management mode, state tracking is less critical since all unmanaged records are deleted regardless. However, the state file is still maintained for consistency.
-
-### First Run
-
-On the first run (no state file exists), dnsync assumes it has not previously managed any records. In partial mode, this means it will only create and update — never delete — until the state file is established.
+The state file is primarily used by [partial mode](#partial-mode) to distinguish between records dnsync manages and records it should leave alone. In full mode, the state file is maintained for consistency but is not required for correct behavior.
 
 ## Action Inputs
 
