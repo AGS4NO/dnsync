@@ -39,7 +39,7 @@ zones:
         ttl: 3600
       - name: test
         type: TXT
-        content: "v=spf1 include:_spf.example.com ~all"
+        content: "v=spf1 -all"
         ttl: 3600
 
       # SRV record (content = "weight port target", priority is separate)
