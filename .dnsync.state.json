@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "zones": {
+    "dnsync.net": {
+      "manage": "partial",
+      "records": [
+        {
+          "name": "_sip._tcp.test",
+          "type": "SRV",
+          "content": "60 5060 sip.dnsync.net",
+          "ttl": 3600,
+          "priority": 10
+        },
+        {
+          "name": "alias-test",
+          "type": "ALIAS",
+          "content": "test.dnsync.net",
+          "ttl": 3600
+        },
+        {
+          "name": "delegated-test",
+          "type": "NS",
+          "content": "ns1.example.com",
+          "ttl": 3600
+        },
+        {
+          "name": "test",
+          "type": "A",
+          "content": "192.0.2.2",
+          "ttl": 3600
+        },
+        {
+          "name": "test",
+          "type": "AAAA",
+          "content": "2001:db8::1",
+          "ttl": 3600
+        },
+        {
+          "name": "test",
+          "type": "CAA",
+          "content": "0 issue letsencrypt.org",
+          "ttl": 3600
+        },
+        {
+          "name": "test",
+          "type": "MX",
+          "content": "mail1.dnsync.net",
+          "ttl": 3600,
+          "priority": 10
+        },
+        {
+          "name": "test",
+          "type": "MX",
+          "content": "mail2.dnsync.net",
+          "ttl": 3600,
+          "priority": 20
+        },
+        {
+          "name": "test",
+          "type": "TXT",
+          "content": "dnsync-managed-record",
+          "ttl": 3600
+        },
+        {
+          "name": "test",
+          "type": "TXT",
+          "content": "v=spf1 -all",
+          "ttl": 3600
+        },
+        {
+          "name": "www-test",
+          "type": "CNAME",
+          "content": "test.dnsync.net",
+          "ttl": 3600
+        }
+      ]
+    }
+  }
+}
