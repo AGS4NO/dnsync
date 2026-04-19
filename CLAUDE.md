@@ -35,9 +35,11 @@ A GitHub Action written in Go that manages DNS records at DNSimple based on a de
 ## Architecture
 
 ```
-main.go → config.Load() → dnsimple.Fetch() → diff.Compute() → plan.Format() / dnsimple.Apply()
-                                                                  ↓
-                                                          github.PostComment()
+main.go �� config.Load() → state.Load() → dnsimple.Fetch() → diff.Compute(desired, live, prevState)
+                                                                    ↓
+                                                plan.Format() / dnsimple.Apply() → state.Save() → git commit/push
+                                                     ↓
+                                             github.PostComment()
 ```
 
 ## Development
@@ -53,3 +55,6 @@ main.go → config.Load() → dnsimple.Fetch() → diff.Compute() → plan.Forma
 - In `full` mode, SOA and NS records at the zone apex are never deleted
 - PR comments use a hidden HTML marker (`<!-- dnsync-plan -->`) to update in place
 - Config supports multiple zones with independent management modes
+- State file (`.dnsync.state.json`) tracks previously managed records for partial mode deletion
+- State file is auto-committed and pushed after successful apply runs
+- State matching uses content keys (`name/type/content`) for multi-value record support

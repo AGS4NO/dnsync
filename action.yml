@@ -19,6 +19,9 @@ inputs:
   mode:
     description: '"plan" to preview changes (posts PR comment), "apply" to execute changes'
     default: 'plan'
+  state-file:
+    description: 'Path to the state file that tracks managed records'
+    default: '.dnsync.state.json'
 
 runs:
   using: 'docker'
@@ -28,3 +31,4 @@ runs:
     INPUT_DNSIMPLE_ACCOUNT_ID: ${{ inputs.dnsimple-account-id }}
     INPUT_CONFIG_FILE: ${{ inputs.config-file }}
     INPUT_MODE: ${{ inputs.mode }}
+    INPUT_STATE_FILE: ${{ inputs.state-file }}
