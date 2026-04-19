@@ -1,0 +1,237 @@
+# dnsync
+
+A GitHub Action that manages DNS records at [DNSimple](https://dnsimple.com) from a declarative YAML configuration file. Define your DNS records in code, review changes in pull requests, and apply them automatically on merge.
+
+## Features
+
+- **Declarative DNS**: Define all your DNS records in a single YAML file
+- **Multi-zone support**: Manage multiple DNS zones from one config file
+- **Full or partial management**: Choose whether dnsync owns the entire zone or only manages specific records
+- **Plan/apply workflow**: Preview changes as PR comments, apply on merge to main
+- **Safe defaults**: Partial management mode by default, immutable records (SOA, apex NS) are never deleted
+
+## Quick Start
+
+### 1. Create a DNS config file
+
+Add a `dns.yaml` to your repository:
+
+```yaml
+zones:
+  - zone: example.com
+    manage: full
+    records:
+      - name: "@"
+        type: A
+        content: 192.0.2.1
+        ttl: 3600
+      - name: www
+        type: CNAME
+        content: example.com
+        ttl: 3600
+      - name: "@"
+        type: MX
+        content: mail.example.com
+        ttl: 3600
+        priority: 10
+
+  - zone: staging.example.com
+    manage: partial
+    records:
+      - name: api
+        type: A
+        content: 203.0.113.5
+        ttl: 300
+```
+
+### 2. Set up the GitHub Action workflow
+
+Create `.github/workflows/dns.yml`:
+
+```yaml
+name: DNS Management
+
+on:
+  pull_request:
+    paths: [dns.yaml]
+  push:
+    branches: [main]
+    paths: [dns.yaml]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  dns:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ags4no/dnsync@v1
+        with:
+          dnsimple-token: ${{ secrets.DNSIMPLE_TOKEN }}
+          dnsimple-account-id: ${{ secrets.DNSIMPLE_ACCOUNT_ID }}
+          mode: ${{ github.event_name == 'push' && 'apply' || 'plan' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+### 3. Add secrets
+
+In your repository settings, add:
+- `DNSIMPLE_TOKEN`: Your DNSimple API token
+- `DNSIMPLE_ACCOUNT_ID`: Your DNSimple account ID
+
+## Configuration Reference
+
+### Top-level
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `zones` | list | List of zone configurations (required) |
+
+### Zone Configuration
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `zone` | string | | Domain name (required) |
+| `manage` | string | `partial` | Management mode: `full` or `partial` |
+| `records` | list | | List of DNS records (required) |
+
+### Management Modes
+
+| Mode | Records in file & zone | Records only in file | Records only in zone |
+|------|----------------------|---------------------|---------------------|
+| `full` | Update if different | Create | **Delete** |
+| `partial` | Update if different | Create | Leave alone |
+
+**Important**: In `full` mode, SOA records and NS records at the zone apex are never deleted regardless of configuration.
+
+### Record Configuration
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | No | Record name. Use `@` or omit for zone apex |
+| `type` | string | Yes | Record type (A, AAAA, CNAME, MX, TXT, SRV, NS, etc.) |
+| `content` | string | Yes | Record value |
+| `ttl` | int | No | Time to live in seconds |
+| `priority` | int | No | Priority (for MX, SRV records) |
+
+### Multi-value Records
+
+Record types that support multiple values for the same name (MX, TXT, SRV, NS) can be specified multiple times:
+
+```yaml
+records:
+  - name: "@"
+    type: MX
+    content: mail1.example.com
+    priority: 10
+  - name: "@"
+    type: MX
+    content: mail2.example.com
+    priority: 20
+```
+
+## Action Inputs
+
+| Input | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `dnsimple-token` | Yes | | DNSimple API token |
+| `dnsimple-account-id` | Yes | | DNSimple account ID |
+| `config-file` | No | `dns.yaml` | Path to the config file |
+| `mode` | No | `plan` | `plan` to preview, `apply` to execute |
+
+## Testing
+
+### Prerequisites
+
+- Go 1.22+ (run inside devcontainer if Go is not installed locally)
+- No external services needed for unit tests
+
+### Running Unit Tests
+
+```bash
+# Run all tests
+go test ./...
+
+# Run tests with verbose output
+go test -v ./...
+
+# Run tests for a specific package
+go test -v ./internal/config/
+go test -v ./internal/diff/
+go test -v ./internal/plan/
+```
+
+### Test Coverage
+
+```bash
+# Generate coverage report
+go test -coverprofile=coverage.out ./...
+
+# View coverage in browser
+go tool cover -html=coverage.out
+
+# View coverage summary
+go tool cover -func=coverage.out
+```
+
+### What's Tested
+
+| Package | What's covered |
+|---------|---------------|
+| `internal/config` | YAML parsing, validation, default values, error cases, record normalization |
+| `internal/diff` | Create/update/delete detection, full vs partial mode, immutable record protection, multi-value records |
+| `internal/plan` | Markdown and text formatting, multi-zone output, edge cases |
+
+### Integration Testing (Manual)
+
+To test against a real DNSimple account:
+
+1. Create a sandbox account at [DNSimple](https://sandbox.dnsimple.com)
+2. Set environment variables:
+   ```bash
+   export INPUT_DNSIMPLE_TOKEN="your-sandbox-token"
+   export INPUT_DNSIMPLE_ACCOUNT_ID="your-account-id"
+   export INPUT_CONFIG_FILE="testdata/partial_zone.yaml"
+   export INPUT_MODE="plan"
+   ```
+3. Run the binary:
+   ```bash
+   go build -o dnsync . && ./dnsync
+   ```
+
+### Docker Build Test
+
+```bash
+docker build -t dnsync .
+docker run --rm \
+  -e INPUT_DNSIMPLE_TOKEN="test" \
+  -e INPUT_DNSIMPLE_ACCOUNT_ID="12345" \
+  -e INPUT_CONFIG_FILE="dns.yaml" \
+  -e INPUT_MODE="plan" \
+  -v $(pwd)/testdata/partial_zone.yaml:/dns.yaml \
+  dnsync
+```
+
+## Project Structure
+
+```
+dnsync/
+├── action.yml              # GitHub Action metadata
+├── Dockerfile              # Container action image
+├── main.go                 # Entrypoint and orchestration
+├── internal/
+│   ├── config/             # YAML config parsing and validation
+│   ├── diff/               # Desired vs live record diffing
+│   ├── plan/               # Change plan formatting (markdown, text)
+│   ├── dnsimple/           # DNSimple API client wrapper
+│   └── github/             # GitHub PR comment management
+└── testdata/               # Sample config files for testing
+```
+
+## License
+
+MIT
