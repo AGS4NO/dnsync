@@ -5,7 +5,7 @@ zones:
       # A record
       - name: test
         type: A
-        content: 192.0.2.1
+        content: 192.0.2.2
         ttl: 3600
 
       # AAAA record (IPv6)
