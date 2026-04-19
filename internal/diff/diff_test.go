@@ -257,6 +257,23 @@ func TestCompute_SingleValueType_UpdatesContent(t *testing.T) {
 	}
 }
 
+func TestCompute_CAAContentNormalization(t *testing.T) {
+	// DNSimple returns CAA content with quotes around the value,
+	// config does not. These should match as identical.
+	desired := []config.Record{
+		{Name: "test", Type: "CAA", Content: "0 issue letsencrypt.org", TTL: 3600},
+	}
+	live := []LiveRecord{
+		{ID: 1, Name: "test", Type: "CAA", Content: "0 issue \"letsencrypt.org\"", TTL: 3600},
+	}
+
+	cs := Compute("example.com", config.ManagePartial, desired, live, nil)
+
+	if cs.HasChanges() {
+		t.Errorf("expected no changes (CAA content should normalize quotes), got %d", len(cs.Changes))
+	}
+}
+
 func TestCompute_FullMode_ProtectsSOA(t *testing.T) {
 	desired := []config.Record{}
 	live := []LiveRecord{
