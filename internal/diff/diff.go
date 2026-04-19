@@ -34,8 +34,9 @@ func (r LiveRecord) RecordKey() string {
 }
 
 // ContentKey returns a key including content for multi-value matching.
+// TXT content is normalized to strip surrounding quotes added by DNSimple.
 func (r LiveRecord) ContentKey() string {
-	return r.Name + "/" + strings.ToUpper(r.Type) + "/" + r.Content
+	return r.Name + "/" + strings.ToUpper(r.Type) + "/" + normalizeTXTContent(r.Type, r.Content)
 }
 
 // Change represents a single DNS record change.
@@ -115,12 +116,15 @@ func Compute(zone string, manage config.ManageMode, desired []config.Record, liv
 			continue
 		}
 
-		// Find an exact content match or an unmatched entry to update
+		// Find an exact content match or an unmatched entry to update.
+		// TXT content is normalized because DNSimple wraps TXT values in quotes.
 		var exactMatch *liveEntry
 		var updateCandidate *liveEntry
+		desiredContent := normalizeTXTContent(dr.Type, dr.Content)
 
 		for _, e := range entries {
-			if e.record.Content == dr.Content {
+			liveContent := normalizeTXTContent(e.record.Type, e.record.Content)
+			if liveContent == desiredContent {
 				exactMatch = e
 				break
 			}
@@ -218,6 +222,17 @@ func isMultiValueType(recordType string) bool {
 		return true
 	}
 	return false
+}
+
+// normalizeTXTContent strips surrounding double quotes from TXT record content.
+// DNSimple returns TXT content wrapped in quotes (e.g., `"v=spf1 -all"`) but
+// users write it without quotes in config. This ensures they match during comparison.
+func normalizeTXTContent(recordType, content string) string {
+	if strings.ToUpper(recordType) == "TXT" {
+		content = strings.TrimPrefix(content, "\"")
+		content = strings.TrimSuffix(content, "\"")
+	}
+	return content
 }
 
 func needsUpdate(desired config.Record, live LiveRecord) bool {
