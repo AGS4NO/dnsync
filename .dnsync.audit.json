@@ -1,0 +1,140 @@
+{
+  "_description": "dnsync audit log — records all DNS changes with timestamps and zone snapshots. Use this file to restore zones to a previous state or query record change history. Each entry contains the changes applied and a complete snapshot of the zone after those changes.",
+  "entries": [
+    {
+      "timestamp": "2026-04-20T00:29:57.675179648Z",
+      "action": "apply",
+      "zones": {
+        "dnsync.net": {
+          "manage": "partial",
+          "changes": [
+            {
+              "action": "update",
+              "name": "test",
+              "type": "A",
+              "content": "192.0.2.3",
+              "ttl": 3600,
+              "old_content": "192.0.2.2",
+              "old_ttl": 3600
+            },
+            {
+              "action": "create",
+              "name": "api-test",
+              "type": "A",
+              "content": "198.51.100.1",
+              "ttl": 300
+            },
+            {
+              "action": "delete",
+              "name": "test",
+              "type": "MX",
+              "content": "mail2.dnsync.net",
+              "ttl": 3600,
+              "priority": 20
+            }
+          ],
+          "snapshot": [
+            {
+              "name": "",
+              "type": "NS",
+              "content": "ns1.dnsimple.com",
+              "ttl": 3600
+            },
+            {
+              "name": "",
+              "type": "NS",
+              "content": "ns2.dnsimple-edge.net",
+              "ttl": 3600
+            },
+            {
+              "name": "",
+              "type": "NS",
+              "content": "ns3.dnsimple.com",
+              "ttl": 3600
+            },
+            {
+              "name": "",
+              "type": "NS",
+              "content": "ns4.dnsimple-edge.org",
+              "ttl": 3600
+            },
+            {
+              "name": "",
+              "type": "SOA",
+              "content": "ns1.dnsimple.com admin.dnsimple.com 1776614487 86400 7200 604800 300",
+              "ttl": 3600
+            },
+            {
+              "name": "_sip._tcp.test",
+              "type": "SRV",
+              "content": "60 5060 sip.dnsync.net",
+              "ttl": 3600,
+              "priority": 10
+            },
+            {
+              "name": "alias-test",
+              "type": "ALIAS",
+              "content": "test.dnsync.net",
+              "ttl": 3600
+            },
+            {
+              "name": "api-test",
+              "type": "A",
+              "content": "198.51.100.1",
+              "ttl": 300
+            },
+            {
+              "name": "delegated-test",
+              "type": "NS",
+              "content": "ns1.example.com",
+              "ttl": 3600
+            },
+            {
+              "name": "test",
+              "type": "A",
+              "content": "192.0.2.3",
+              "ttl": 3600
+            },
+            {
+              "name": "test",
+              "type": "AAAA",
+              "content": "2001:db8::1",
+              "ttl": 3600
+            },
+            {
+              "name": "test",
+              "type": "CAA",
+              "content": "0 issue letsencrypt.org",
+              "ttl": 3600
+            },
+            {
+              "name": "test",
+              "type": "MX",
+              "content": "mail1.dnsync.net",
+              "ttl": 3600,
+              "priority": 10
+            },
+            {
+              "name": "test",
+              "type": "TXT",
+              "content": "dnsync-managed-record",
+              "ttl": 3600
+            },
+            {
+              "name": "test",
+              "type": "TXT",
+              "content": "v=spf1 -all",
+              "ttl": 3600
+            },
+            {
+              "name": "www-test",
+              "type": "CNAME",
+              "content": "test.dnsync.net",
+              "ttl": 3600
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

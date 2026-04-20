@@ -18,6 +18,12 @@
           "ttl": 3600
         },
         {
+          "name": "api-test",
+          "type": "A",
+          "content": "198.51.100.1",
+          "ttl": 300
+        },
+        {
           "name": "delegated-test",
           "type": "NS",
           "content": "ns1.example.com",
@@ -26,7 +32,7 @@
         {
           "name": "test",
           "type": "A",
-          "content": "192.0.2.2",
+          "content": "192.0.2.3",
           "ttl": 3600
         },
         {
@@ -47,13 +53,6 @@
           "content": "mail1.dnsync.net",
           "ttl": 3600,
           "priority": 10
-        },
-        {
-          "name": "test",
-          "type": "MX",
-          "content": "mail2.dnsync.net",
-          "ttl": 3600,
-          "priority": 20
         },
         {
           "name": "test",
