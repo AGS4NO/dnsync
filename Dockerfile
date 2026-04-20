@@ -8,7 +8,5 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /dnsync .
 
 FROM alpine:3.19
 RUN apk --no-cache add ca-certificates git
-RUN adduser -D -h /app dnsync
 COPY --from=builder /dnsync /dnsync
-USER dnsync
 ENTRYPOINT ["/dnsync"]
