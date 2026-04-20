@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/ags4no/dnsync/internal/audit"
 	"github.com/ags4no/dnsync/internal/config"
 	"github.com/ags4no/dnsync/internal/diff"
 	dns "github.com/ags4no/dnsync/internal/dnsimple"
@@ -29,6 +30,7 @@ func run() error {
 	mode := getEnv("INPUT_MODE", "plan")
 	configFile := getEnv("INPUT_CONFIG_FILE", "dns.yaml")
 	stateFile := getEnv("INPUT_STATE_FILE", ".dnsync.state.json")
+	auditFile := getEnv("INPUT_AUDIT_FILE", ".dnsync.audit.json")
 	dnsimpleToken := os.Getenv("INPUT_DNSIMPLE_TOKEN")
 	dnsimpleAccountID := os.Getenv("INPUT_DNSIMPLE_ACCOUNT_ID")
 
@@ -52,6 +54,12 @@ func run() error {
 	st, err := state.Load(stateFile)
 	if err != nil {
 		return fmt.Errorf("loading state: %w", err)
+	}
+
+	// Load audit log
+	auditLog, err := audit.Load(auditFile)
+	if err != nil {
+		return fmt.Errorf("loading audit log: %w", err)
 	}
 
 	// Initialize DNSimple client
@@ -88,9 +96,9 @@ func run() error {
 	case "plan":
 		return runPlan(ctx, summary, validation)
 	case "apply":
-		return runApply(ctx, dnsClient, summary, changesets, cfg, stateFile, validation)
+		return runApply(ctx, dnsClient, summary, changesets, cfg, stateFile, auditLog, auditFile, liveByZone, validation)
 	case "reconcile":
-		return runReconcile(ctx, dnsClient, cfg, st, liveByZone, stateFile)
+		return runReconcile(ctx, dnsClient, cfg, st, liveByZone, stateFile, auditLog, auditFile)
 	}
 
 	return nil
@@ -132,7 +140,7 @@ func runPlan(ctx context.Context, summary plan.Summary, validation validate.Resu
 	return nil
 }
 
-func runApply(ctx context.Context, dnsClient *dns.Client, summary plan.Summary, changesets []diff.Changeset, cfg *config.Config, stateFile string, validation validate.Result) error {
+func runApply(ctx context.Context, dnsClient *dns.Client, summary plan.Summary, changesets []diff.Changeset, cfg *config.Config, stateFile string, auditLog *audit.Log, auditFile string, liveByZone map[string][]diff.LiveRecord, validation validate.Result) error {
 	// Block apply if there are validation errors
 	if validation.HasErrors() {
 		return fmt.Errorf("validation failed — cannot apply changes with errors")
@@ -172,11 +180,18 @@ func runApply(ctx context.Context, dnsClient *dns.Client, summary plan.Summary, 
 	}
 	fmt.Printf("State saved to %s\n", stateFile)
 
+	// Record audit entry
+	auditLog.RecordApply(changesets, liveByZone, cfg)
+	if err := auditLog.Save(auditFile); err != nil {
+		return fmt.Errorf("saving audit log: %w", err)
+	}
+	fmt.Printf("Audit log saved to %s\n", auditFile)
+
 	fmt.Println("All DNS changes applied successfully.")
 	return nil
 }
 
-func runReconcile(ctx context.Context, dnsClient *dns.Client, cfg *config.Config, st *state.File, liveByZone map[string][]diff.LiveRecord, stateFile string) error {
+func runReconcile(ctx context.Context, dnsClient *dns.Client, cfg *config.Config, st *state.File, liveByZone map[string][]diff.LiveRecord, stateFile string, auditLog *audit.Log, auditFile string) error {
 	fmt.Println("Reconciling: finding orphaned records from previous runs...")
 
 	var orphans []diff.Change
@@ -249,6 +264,13 @@ func runReconcile(ctx context.Context, dnsClient *dns.Client, cfg *config.Config
 	if err := st.Save(stateFile); err != nil {
 		return fmt.Errorf("saving state: %w", err)
 	}
+
+	// Record audit entry
+	auditLog.RecordReconcile(orphans, liveByZone, cfg)
+	if err := auditLog.Save(auditFile); err != nil {
+		return fmt.Errorf("saving audit log: %w", err)
+	}
+	fmt.Printf("Audit log saved to %s\n", auditFile)
 
 	fmt.Printf("State saved to %s\n", stateFile)
 	fmt.Println("Reconciliation complete.")

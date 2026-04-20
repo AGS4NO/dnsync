@@ -193,6 +193,61 @@ dnsync uses a state file (`.dnsync.state.json`) to track which records it has pr
 
 The state file is primarily used by [partial mode](#partial-mode) to distinguish between records dnsync manages and records it should leave alone. In full mode, the state file is maintained for consistency but is not required for correct behavior.
 
+## Audit Log
+
+dnsync maintains an audit log (`.dnsync.audit.json`) that records the full history of DNS changes. After each `apply` or `reconcile`, an entry is appended containing:
+
+- **Timestamp** — when the changes were applied
+- **Changes** — every create, update, and delete with old and new values
+- **Zone snapshot** — the complete state of the zone after the changes
+
+The audit log is committed to the repo alongside the state file, providing a git-tracked history of your DNS infrastructure.
+
+### AI-Powered Zone Management
+
+The audit log is designed to be read by AI agents (Claude, GitHub Copilot, etc.) to answer natural language queries about your DNS history. Example prompts:
+
+- **"Restore my zone to 2026-04-15"** — the agent reads the audit log, finds the snapshot at that date, and edits `dns.yaml` to match that state. You then commit and merge to apply.
+- **"When was the last time the www record was updated?"** — the agent searches the audit log for changes affecting the `www` record and reports the timestamps and details.
+- **"Show me all changes made to dnsync.net in the last month"** — the agent filters entries by date range and summarizes the changes.
+- **"What did the MX records look like before the April 18th change?"** — the agent finds the snapshot just before that date and reports the MX records.
+
+The audit file uses a self-documenting JSON format with a `_description` field explaining its purpose, so AI agents can understand the file without additional context.
+
+### Audit Log Format
+
+```json
+{
+  "_description": "dnsync audit log — records all DNS changes...",
+  "entries": [
+    {
+      "timestamp": "2026-04-19T15:30:00Z",
+      "action": "apply",
+      "zones": {
+        "dnsync.net": {
+          "manage": "partial",
+          "changes": [
+            {
+              "action": "update",
+              "name": "www",
+              "type": "A",
+              "content": "192.0.2.2",
+              "ttl": 3600,
+              "old_content": "192.0.2.1",
+              "old_ttl": 3600
+            }
+          ],
+          "snapshot": [
+            {"name": "www", "type": "A", "content": "192.0.2.2", "ttl": 3600},
+            {"name": "test", "type": "TXT", "content": "dnsync-managed-record", "ttl": 3600}
+          ]
+        }
+      }
+    }
+  ]
+}
+```
+
 ## Action Inputs
 
 | Input | Required | Default | Description |
@@ -200,8 +255,9 @@ The state file is primarily used by [partial mode](#partial-mode) to distinguish
 | `dnsimple-token` | Yes | | DNSimple API token |
 | `dnsimple-account-id` | Yes | | DNSimple account ID |
 | `config-file` | No | `dns.yaml` | Path to the config file |
-| `mode` | No | `plan` | `plan` to preview, `apply` to execute |
+| `mode` | No | `plan` | `plan` to preview, `apply` to execute, `reconcile` to clean up orphans |
 | `state-file` | No | `.dnsync.state.json` | Path to the state tracking file |
+| `audit-file` | No | `.dnsync.audit.json` | Path to the audit log file |
 
 ## Testing
 
@@ -248,6 +304,7 @@ go tool cover -func=coverage.out
 | `internal/plan` | Markdown and text formatting, multi-zone output, edge cases |
 | `internal/state` | State file load/save, config-to-state conversion, deterministic serialization, missing file handling |
 | `internal/validate` | Duplicate detection, CNAME conflicts, content format validation (A/AAAA/MX/SRV/CAA/CNAME), TXT normalization |
+| `internal/audit` | Audit log load/save, apply/reconcile recording, snapshot building, record history queries, snapshot-at-time queries, snapshot-to-config conversion |
 
 ### Local CLI Testing
 

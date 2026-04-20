@@ -2,10 +2,10 @@ zones:
   - zone: dnsync.net
     manage: partial
     records:
-      # A record
+      # A record — updated IP from 192.0.2.2 → 192.0.2.3
       - name: test
         type: A
-        content: 192.0.2.2
+        content: 192.0.2.3
         ttl: 3600
 
       # AAAA record (IPv6)
@@ -20,17 +20,12 @@ zones:
         content: test.dnsync.net
         ttl: 3600
 
-      # MX records (multiple values, priority)
+      # MX records — removed mail2, kept mail1
       - name: test
         type: MX
         content: mail1.dnsync.net
         ttl: 3600
         priority: 10
-      - name: test
-        type: MX
-        content: mail2.dnsync.net
-        ttl: 3600
-        priority: 20
 
       # TXT records (multiple values)
       - name: test
@@ -66,3 +61,9 @@ zones:
         type: CAA
         content: "0 issue letsencrypt.org"
         ttl: 3600
+
+      # NEW: A record for api subdomain
+      - name: api-test
+        type: A
+        content: 198.51.100.1
+        ttl: 300
