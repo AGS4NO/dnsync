@@ -388,6 +388,60 @@ dnsync/
 └── testdata/               # Sample config files for testing
 ```
 
+## Contributing
+
+Contributions are welcome! Here's how to get started:
+
+### Getting Started
+
+1. **Fork the repository** and clone your fork
+2. **Create a branch** for your changes:
+   ```bash
+   git checkout -b my-feature
+   ```
+3. **Make your changes** and add tests
+4. **Run the test suite** to make sure everything passes:
+   ```bash
+   go test -v ./...
+   ```
+5. **Open a pull request** against `main`
+
+### Pull Request Process
+
+- All PRs require the `unit-tests` status check to pass before merging
+- PRs from outside collaborators require maintainer approval before workflows run — this is a security measure since the CI environment has access to DNS credentials
+- Keep PRs focused — one feature or fix per PR
+- Add or update tests for any new functionality
+- Update documentation (README, CLAUDE.md) if your change affects usage or architecture
+
+### What You Can Work On Without DNS Access
+
+Most of the codebase can be developed and tested without a DNSimple account:
+
+- **`internal/config`** — YAML parsing and validation
+- **`internal/diff`** — Record diffing logic (fully unit tested with mock data)
+- **`internal/plan`** — Plan formatting (markdown and text output)
+- **`internal/state`** — State file management
+- **`internal/validate`** — Change validation
+- **`internal/audit`** — Audit log and history queries
+
+Only `internal/dnsimple` and `internal/github` require live API access, and integration testing is handled by the maintainers.
+
+### Development Environment
+
+- Go 1.22+ is required (a devcontainer configuration is included)
+- No external services are needed to run unit tests
+- The project uses only the Go standard library and three dependencies:
+  - `github.com/dnsimple/dnsimple-go` — DNSimple API client
+  - `github.com/google/go-github/v60` — GitHub API client
+  - `gopkg.in/yaml.v3` — YAML parsing
+
+### Security
+
+- **Never commit secrets** (API tokens, account IDs) to the repository
+- PRs that modify GitHub Actions workflows will receive extra scrutiny
+- If you discover a security vulnerability, please report it privately via GitHub Security Advisories rather than opening a public issue
+
 ## License
 
 MIT
