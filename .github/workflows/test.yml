@@ -50,6 +50,8 @@ jobs:
           config-file: dns.zone
           config-format: bind
           manage-mode: partial
+          state-file: .dnsync.bind.state.json
+          audit-file: .dnsync.bind.audit.json
           mode: plan
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -75,6 +77,8 @@ jobs:
           config-file: dns.zone
           config-format: bind
           manage-mode: partial
+          state-file: .dnsync.bind.state.json
+          audit-file: .dnsync.bind.audit.json
           mode: apply
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -82,5 +86,5 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -f .dnsync.state.json .dnsync.audit.json 2>/dev/null || true
+          git add -f .dnsync.state.json .dnsync.audit.json .dnsync.bind.state.json .dnsync.bind.audit.json 2>/dev/null || true
           git diff --cached --quiet || (git commit -m "chore: update dnsync state and audit log [skip ci]" && git push)
