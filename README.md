@@ -4,7 +4,7 @@ A GitHub Action that manages DNS records at [DNSimple](https://dnsimple.com) fro
 
 ## Features
 
-- **Declarative DNS**: Define all your DNS records in a single YAML file
+- **Declarative DNS**: Define all your DNS records in a YAML file or BIND zone file
 - **Multi-zone support**: Manage multiple DNS zones from one config file
 - **Full or partial management**: Choose whether dnsync owns the entire zone or only manages specific records
 - **Plan/apply workflow**: Preview changes as PR comments, apply on merge to main
@@ -187,6 +187,61 @@ records:
     priority: 20
 ```
 
+## BIND Zone File Support
+
+As an alternative to YAML, you can define DNS records using a standard BIND zone file. This is useful if you already maintain BIND zone files or prefer the traditional format.
+
+### BIND zone file example
+
+Create a `dns.zone` file:
+
+```
+$ORIGIN example.com.
+$TTL 3600
+
+@       IN  A       192.0.2.1
+www     IN  A       192.0.2.2
+@       IN  AAAA    2001:db8::1
+blog    IN  CNAME   www.example.com.
+@       IN  MX  10  mail1.example.com.
+@       IN  MX  20  mail2.example.com.
+@       IN  TXT     "v=spf1 include:_spf.google.com ~all"
+_sip._tcp IN SRV 10 60 5060 sip.example.com.
+sub     IN  NS      ns1.example.com.
+@       IN  CAA     0 issue "letsencrypt.org"
+```
+
+### Using BIND format in the workflow
+
+Set `config-format: bind` and point `config-file` to your zone file:
+
+```yaml
+- uses: ags4no/dnsync@v0.1.0
+  with:
+    dnsimple-token: ${{ secrets.DNSIMPLE_TOKEN }}
+    dnsimple-account-id: ${{ secrets.DNSIMPLE_ACCOUNT_ID }}
+    config-file: dns.zone
+    config-format: bind
+    manage-mode: partial
+    mode: ${{ github.event_name == 'push' && 'apply' || 'plan' }}
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+### BIND format details
+
+- The zone name is extracted from the `$ORIGIN` directive (required)
+- SOA records are ignored — dnsync does not manage SOA records
+- Management mode is set via the `manage-mode` input (default: `partial`) since BIND files have no equivalent concept
+- Each BIND file defines a single zone. For multi-zone setups, use separate files with separate action steps, or use the YAML format
+- All standard record types are supported: A, AAAA, CNAME, MX, TXT, SRV, NS, CAA
+
+### Local CLI testing with BIND format
+
+```bash
+INPUT_CONFIG_FILE="dns.zone" INPUT_CONFIG_FORMAT="bind" INPUT_MANAGE_MODE="partial" INPUT_MODE=plan ./dnsync
+```
+
 ## State Tracking
 
 dnsync uses a state file (`.dnsync.state.json`) to track which records it has previously applied. The state file is automatically committed and pushed to the repo after each successful `apply` run. **You should commit this file to your repo** and not add it to `.gitignore`.
@@ -254,7 +309,9 @@ The audit file uses a self-documenting JSON format with a `_description` field e
 |-------|----------|---------|-------------|
 | `dnsimple-token` | Yes | | DNSimple API token |
 | `dnsimple-account-id` | Yes | | DNSimple account ID |
-| `config-file` | No | `dns.yaml` | Path to the config file |
+| `config-file` | No | `dns.yaml` | Path to the config file (YAML or BIND zone file) |
+| `config-format` | No | `yaml` | Config file format: `yaml` or `bind` |
+| `manage-mode` | No | `partial` | Zone management mode when using BIND format: `partial` or `full` |
 | `mode` | No | `plan` | `plan` to preview, `apply` to execute, `reconcile` to clean up orphans |
 | `state-file` | No | `.dnsync.state.json` | Path to the state tracking file |
 | `audit-file` | No | `.dnsync.audit.json` | Path to the audit log file |
@@ -299,7 +356,7 @@ go tool cover -func=coverage.out
 
 | Package | What's covered |
 |---------|---------------|
-| `internal/config` | YAML parsing, validation, default values, error cases, record normalization |
+| `internal/config` | YAML and BIND zone file parsing, validation, default values, error cases, record normalization |
 | `internal/diff` | Create/update/delete detection, full vs partial mode, state-based deletion in partial mode, immutable record protection, multi-value records |
 | `internal/plan` | Markdown and text formatting, multi-zone output, edge cases |
 | `internal/state` | State file load/save, config-to-state conversion, deterministic serialization, missing file handling |
@@ -380,7 +437,7 @@ dnsync/
 ├── Dockerfile              # Container action image
 ├── main.go                 # Entrypoint and orchestration
 ├── internal/
-│   ├── config/             # YAML config parsing and validation
+│   ├── config/             # Config parsing (YAML and BIND) and validation
 │   ├── diff/               # Desired vs live record diffing
 │   ├── plan/               # Change plan formatting (markdown, text)
 │   ├── dnsimple/           # DNSimple API client wrapper
@@ -435,6 +492,7 @@ Only `internal/dnsimple` and `internal/github` require live API access, and inte
   - `github.com/dnsimple/dnsimple-go` — DNSimple API client
   - `github.com/google/go-github/v60` — GitHub API client
   - `gopkg.in/yaml.v3` — YAML parsing
+  - `github.com/miekg/dns` — BIND zone file parsing
 
 ### Security
 
