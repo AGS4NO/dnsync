@@ -83,6 +83,20 @@ In your repository settings, add:
 - `DNSIMPLE_TOKEN`: Your DNSimple API token
 - `DNSIMPLE_ACCOUNT_ID`: Your DNSimple account ID
 
+### Branch protection and state file commits
+
+After each `apply`, dnsync commits updated state and audit files back to the repository. If your repository has branch protection rules or rulesets that restrict direct pushes to `main` (e.g., required status checks, requiring pull requests), the default `GITHUB_TOKEN` will not have permission to push these commits.
+
+To fix this, create a **fine-grained personal access token** (PAT) with **Contents: Read and write** permission scoped to your repository, add it as a repository secret (e.g., `GH_PAT`), and pass it to the checkout step in your apply job:
+
+```yaml
+- uses: actions/checkout@v4
+  with:
+    token: ${{ secrets.GH_PAT }}
+```
+
+This allows the state file commit to bypass branch protection rules. If your repository does not have branch protection enabled, the default `GITHUB_TOKEN` is sufficient and no PAT is needed.
+
 ## Configuration Reference
 
 ### Top-level
