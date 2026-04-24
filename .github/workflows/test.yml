@@ -2,10 +2,10 @@ name: Test Action
 
 on:
   pull_request:
-    paths: [dns.yaml, '**/*.go', action.yml, Dockerfile]
+    paths: [dns.yaml, dns.zone, '**/*.go', action.yml, Dockerfile]
   push:
     branches: [main]
-    paths: [dns.yaml, '**/*.go', action.yml, Dockerfile]
+    paths: [dns.yaml, dns.zone, '**/*.go', action.yml, Dockerfile]
   workflow_dispatch:
 
 permissions:
@@ -37,6 +37,23 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  dns-plan-bind:
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./
+        with:
+          dnsimple-token: ${{ secrets.DNSIMPLE_TOKEN }}
+          dnsimple-account-id: ${{ secrets.DNSIMPLE_ACCOUNT_ID }}
+          config-file: dns.zone
+          config-format: bind
+          manage-mode: partial
+          mode: plan
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   dns-apply:
     runs-on: ubuntu-latest
     needs: unit-tests
@@ -48,6 +65,16 @@ jobs:
           dnsimple-token: ${{ secrets.DNSIMPLE_TOKEN }}
           dnsimple-account-id: ${{ secrets.DNSIMPLE_ACCOUNT_ID }}
           config-file: dns.yaml
+          mode: apply
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: ./
+        with:
+          dnsimple-token: ${{ secrets.DNSIMPLE_TOKEN }}
+          dnsimple-account-id: ${{ secrets.DNSIMPLE_ACCOUNT_ID }}
+          config-file: dns.zone
+          config-format: bind
+          manage-mode: partial
           mode: apply
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
