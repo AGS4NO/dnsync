@@ -82,6 +82,8 @@ jobs:
           mode: apply
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Debug state files
+        run: ls -la .dnsync*
       - name: Commit state and audit files
         run: |
           git config user.name "github-actions[bot]"
