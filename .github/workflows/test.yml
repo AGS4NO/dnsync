@@ -2,10 +2,8 @@ name: Test Action
 
 on:
   pull_request:
-    paths: [dns.yaml, dns.zone, '**/*.go', action.yml, Dockerfile]
   push:
     branches: [main]
-    paths: [dns.yaml, dns.zone, '**/*.go', action.yml, Dockerfile]
   workflow_dispatch:
 
 permissions:
@@ -62,6 +60,8 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.GH_PAT }}
       - uses: ./
         with:
           dnsimple-token: ${{ secrets.DNSIMPLE_TOKEN }}
