@@ -1,0 +1,21 @@
+$ORIGIN dnsync.net.
+$TTL 3600
+
+; BIND zone file — manages different records than dns.yaml (partial mode)
+; dns.yaml manages: test, www-test, api-test, etc.
+; This file manages: bind-test records
+
+; A record
+bind-test       IN  A       198.51.100.10
+
+; AAAA record
+bind-test       IN  AAAA    2001:db8::10
+
+; CNAME record
+www-bind-test   IN  CNAME   bind-test.dnsync.net.
+
+; MX record
+bind-test       IN  MX  10  mail1.dnsync.net.
+
+; TXT record
+bind-test       IN  TXT     "dnsync-bind-managed-record"

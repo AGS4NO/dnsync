@@ -29,6 +29,8 @@ func run() error {
 	// Read action inputs from environment
 	mode := getEnv("INPUT_MODE", "plan")
 	configFile := getEnv("INPUT_CONFIG_FILE", "dns.yaml")
+	configFormat := getEnv("INPUT_CONFIG_FORMAT", "yaml")
+	manageMode := getEnv("INPUT_MANAGE_MODE", "partial")
 	stateFile := getEnv("INPUT_STATE_FILE", ".dnsync.state.json")
 	auditFile := getEnv("INPUT_AUDIT_FILE", ".dnsync.audit.json")
 	dnsimpleToken := os.Getenv("INPUT_DNSIMPLE_TOKEN")
@@ -43,9 +45,21 @@ func run() error {
 	if mode != "plan" && mode != "apply" && mode != "reconcile" {
 		return fmt.Errorf("mode must be \"plan\", \"apply\", or \"reconcile\", got %q", mode)
 	}
+	if configFormat != "yaml" && configFormat != "bind" {
+		return fmt.Errorf("config-format must be \"yaml\" or \"bind\", got %q", configFormat)
+	}
 
 	// Load config
-	cfg, err := config.Load(configFile)
+	var (
+		cfg *config.Config
+		err error
+	)
+	switch configFormat {
+	case "bind":
+		cfg, err = config.LoadBind(configFile, config.ManageMode(manageMode))
+	default:
+		cfg, err = config.Load(configFile)
+	}
 	if err != nil {
 		return fmt.Errorf("loading config: %w", err)
 	}

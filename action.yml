@@ -14,8 +14,14 @@ inputs:
     description: 'DNSimple account ID'
     required: true
   config-file:
-    description: 'Path to the DNS config YAML file'
+    description: 'Path to the DNS config file (YAML or BIND zone file)'
     default: 'dns.yaml'
+  config-format:
+    description: 'Config file format: "yaml" for YAML config, "bind" for BIND zone file'
+    default: 'yaml'
+  manage-mode:
+    description: 'Zone management mode when using BIND format: "partial" or "full" (ignored for YAML format)'
+    default: 'partial'
   mode:
     description: '"plan" to preview changes, "apply" to execute, "reconcile" to clean up orphaned records'
     default: 'plan'
@@ -33,6 +39,8 @@ runs:
     INPUT_DNSIMPLE_TOKEN: ${{ inputs.dnsimple-token }}
     INPUT_DNSIMPLE_ACCOUNT_ID: ${{ inputs.dnsimple-account-id }}
     INPUT_CONFIG_FILE: ${{ inputs.config-file }}
+    INPUT_CONFIG_FORMAT: ${{ inputs.config-format }}
+    INPUT_MANAGE_MODE: ${{ inputs.manage-mode }}
     INPUT_MODE: ${{ inputs.mode }}
     INPUT_STATE_FILE: ${{ inputs.state-file }}
     INPUT_AUDIT_FILE: ${{ inputs.audit-file }}
