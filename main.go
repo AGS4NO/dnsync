@@ -79,7 +79,7 @@ func run() error {
 	}
 
 	// Build summary
-	summary := plan.NewSummary(changesets)
+	summary := plan.NewSummary(configFile, changesets)
 
 	// Run validation against live zone state
 	validation := validate.Changesets(changesets, liveByZone)
@@ -115,7 +115,8 @@ func runPlan(ctx context.Context, summary plan.Summary, validation validate.Resu
 		// Append validation issues to PR comment
 		md += validation.FormatMarkdown()
 
-		if err := ghClient.UpsertPlanComment(ctx, prNumber, md); err != nil {
+		marker := plan.CommentMarker(summary.ConfigFile)
+		if err := ghClient.UpsertPlanComment(ctx, prNumber, md, marker); err != nil {
 			return fmt.Errorf("posting PR comment: %w", err)
 		}
 		fmt.Printf("Posted plan comment to PR #%d\n", prNumber)

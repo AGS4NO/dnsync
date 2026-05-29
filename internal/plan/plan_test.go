@@ -9,13 +9,13 @@ import (
 )
 
 func TestFormatMarkdown_NoChanges(t *testing.T) {
-	s := NewSummary([]diff.Changeset{
+	s := NewSummary("dns.yaml", []diff.Changeset{
 		{Zone: "example.com"},
 	})
 
 	md := FormatMarkdown(s)
 
-	if !strings.Contains(md, CommentMarker) {
+	if !strings.Contains(md, CommentMarker("dns.yaml")) {
 		t.Error("expected comment marker")
 	}
 	if !strings.Contains(md, "No DNS changes detected") {
@@ -52,9 +52,12 @@ func TestFormatMarkdown_WithChanges(t *testing.T) {
 		},
 	}
 
-	s := NewSummary([]diff.Changeset{cs})
+	s := NewSummary("dns.yaml", []diff.Changeset{cs})
 	md := FormatMarkdown(s)
 
+	if !strings.Contains(md, "## DNS Change Plan — `dns.yaml`") {
+		t.Error("expected plan header with config file")
+	}
 	if !strings.Contains(md, "### example.com") {
 		t.Error("expected zone header")
 	}
@@ -84,7 +87,7 @@ func TestFormatMarkdown_ApexRecordDisplaysAt(t *testing.T) {
 		},
 	}
 
-	s := NewSummary([]diff.Changeset{cs})
+	s := NewSummary("dns.yaml", []diff.Changeset{cs})
 	md := FormatMarkdown(s)
 
 	if !strings.Contains(md, "| @ |") {
@@ -105,7 +108,7 @@ func TestFormatMarkdown_MultiZone(t *testing.T) {
 		},
 	}
 
-	s := NewSummary(changesets)
+	s := NewSummary("dns.yaml", changesets)
 	md := FormatMarkdown(s)
 
 	if !strings.Contains(md, "### example.com") {
@@ -139,7 +142,7 @@ func TestFormatText_WithChanges(t *testing.T) {
 		},
 	}
 
-	s := NewSummary([]diff.Changeset{cs})
+	s := NewSummary("dns.yaml", []diff.Changeset{cs})
 	txt := FormatText(s)
 
 	if !strings.Contains(txt, "+ www A 192.0.2.1") {
@@ -154,7 +157,7 @@ func TestFormatText_WithChanges(t *testing.T) {
 }
 
 func TestFormatText_NoChanges(t *testing.T) {
-	s := NewSummary(nil)
+	s := NewSummary("dns.yaml", nil)
 	txt := FormatText(s)
 
 	if !strings.Contains(txt, "No DNS changes") {
@@ -163,7 +166,7 @@ func TestFormatText_NoChanges(t *testing.T) {
 }
 
 func TestNewSummary_HasChanges(t *testing.T) {
-	s := NewSummary([]diff.Changeset{
+	s := NewSummary("dns.yaml", []diff.Changeset{
 		{Zone: "a.com"},
 		{Zone: "b.com", Changes: []diff.Change{{Action: diff.ActionCreate}}},
 	})
