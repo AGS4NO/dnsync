@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/ags4no/dnsync/internal/config"
-	"github.com/ags4no/dnsync/internal/state"
 )
 
 func TestCompute_CreateNew(t *testing.T) {
@@ -13,7 +12,7 @@ func TestCompute_CreateNew(t *testing.T) {
 	}
 	live := []LiveRecord{}
 
-	cs := Compute("example.com", config.ManagePartial, desired, live, nil)
+	cs := Compute("example.com", desired, live)
 
 	if len(cs.Changes) != 1 {
 		t.Fatalf("expected 1 change, got %d", len(cs.Changes))
@@ -34,7 +33,7 @@ func TestCompute_NoChanges(t *testing.T) {
 		{ID: 1, Name: "www", Type: "A", Content: "192.0.2.1", TTL: 300},
 	}
 
-	cs := Compute("example.com", config.ManagePartial, desired, live, nil)
+	cs := Compute("example.com", desired, live)
 
 	if cs.HasChanges() {
 		t.Errorf("expected no changes, got %d", len(cs.Changes))
@@ -49,7 +48,7 @@ func TestCompute_UpdateContent(t *testing.T) {
 		{ID: 1, Name: "www", Type: "A", Content: "192.0.2.1", TTL: 300},
 	}
 
-	cs := Compute("example.com", config.ManagePartial, desired, live, nil)
+	cs := Compute("example.com", desired, live)
 
 	if len(cs.Changes) != 1 {
 		t.Fatalf("expected 1 change, got %d", len(cs.Changes))
@@ -70,7 +69,7 @@ func TestCompute_UpdateTTL(t *testing.T) {
 		{ID: 1, Name: "www", Type: "A", Content: "192.0.2.1", TTL: 300},
 	}
 
-	cs := Compute("example.com", config.ManagePartial, desired, live, nil)
+	cs := Compute("example.com", desired, live)
 
 	if len(cs.Changes) != 1 {
 		t.Fatalf("expected 1 change, got %d", len(cs.Changes))
@@ -80,7 +79,7 @@ func TestCompute_UpdateTTL(t *testing.T) {
 	}
 }
 
-func TestCompute_FullMode_DeletesUnmanaged(t *testing.T) {
+func TestCompute_DeletesUnmanaged(t *testing.T) {
 	desired := []config.Record{
 		{Name: "www", Type: "A", Content: "192.0.2.1", TTL: 300},
 	}
@@ -89,7 +88,7 @@ func TestCompute_FullMode_DeletesUnmanaged(t *testing.T) {
 		{ID: 2, Name: "old", Type: "A", Content: "192.0.2.99", TTL: 3600},
 	}
 
-	cs := Compute("example.com", config.ManageFull, desired, live, nil)
+	cs := Compute("example.com", desired, live)
 
 	if len(cs.Changes) != 1 {
 		t.Fatalf("expected 1 change, got %d", len(cs.Changes))
@@ -99,119 +98,6 @@ func TestCompute_FullMode_DeletesUnmanaged(t *testing.T) {
 	}
 	if cs.Changes[0].LiveID != 2 {
 		t.Errorf("expected LiveID 2, got %d", cs.Changes[0].LiveID)
-	}
-}
-
-func TestCompute_PartialMode_IgnoresUnmanaged(t *testing.T) {
-	desired := []config.Record{
-		{Name: "www", Type: "A", Content: "192.0.2.1", TTL: 300},
-	}
-	live := []LiveRecord{
-		{ID: 1, Name: "www", Type: "A", Content: "192.0.2.1", TTL: 300},
-		{ID: 2, Name: "old", Type: "A", Content: "192.0.2.99", TTL: 3600},
-	}
-
-	cs := Compute("example.com", config.ManagePartial, desired, live, nil)
-
-	if cs.HasChanges() {
-		t.Errorf("expected no changes in partial mode, got %d", len(cs.Changes))
-	}
-}
-
-func TestCompute_PartialMode_DeletesRemovedFromState(t *testing.T) {
-	// Previously managed: www and old-api
-	// Current config: only www
-	// Expected: old-api should be deleted because it was in state but removed from config
-	desired := []config.Record{
-		{Name: "www", Type: "A", Content: "192.0.2.1", TTL: 300},
-	}
-	live := []LiveRecord{
-		{ID: 1, Name: "www", Type: "A", Content: "192.0.2.1", TTL: 300},
-		{ID: 2, Name: "old-api", Type: "A", Content: "192.0.2.99", TTL: 3600},
-		{ID: 3, Name: "unrelated", Type: "A", Content: "10.0.0.1", TTL: 3600},
-	}
-	prevState := []state.Record{
-		{Name: "www", Type: "A", Content: "192.0.2.1", TTL: 300},
-		{Name: "old-api", Type: "A", Content: "192.0.2.99", TTL: 3600},
-	}
-
-	cs := Compute("example.com", config.ManagePartial, desired, live, prevState)
-
-	if len(cs.Changes) != 1 {
-		t.Fatalf("expected 1 change, got %d", len(cs.Changes))
-	}
-	if cs.Changes[0].Action != ActionDelete {
-		t.Errorf("expected delete, got %s", cs.Changes[0].Action)
-	}
-	if cs.Changes[0].LiveID != 2 {
-		t.Errorf("expected LiveID 2 (old-api), got %d", cs.Changes[0].LiveID)
-	}
-}
-
-func TestCompute_PartialMode_DeletesRemovedMXFromState(t *testing.T) {
-	// Previously managed: two MX records
-	// Current config: only one MX
-	// Expected: removed MX should be deleted
-	desired := []config.Record{
-		{Name: "", Type: "MX", Content: "mail1.example.com", TTL: 3600, Priority: 10},
-	}
-	live := []LiveRecord{
-		{ID: 1, Name: "", Type: "MX", Content: "mail1.example.com", TTL: 3600, Priority: 10},
-		{ID: 2, Name: "", Type: "MX", Content: "mail2.example.com", TTL: 3600, Priority: 20},
-	}
-	prevState := []state.Record{
-		{Name: "", Type: "MX", Content: "mail1.example.com", TTL: 3600, Priority: 10},
-		{Name: "", Type: "MX", Content: "mail2.example.com", TTL: 3600, Priority: 20},
-	}
-
-	cs := Compute("example.com", config.ManagePartial, desired, live, prevState)
-
-	if len(cs.Changes) != 1 {
-		t.Fatalf("expected 1 change, got %d", len(cs.Changes))
-	}
-	if cs.Changes[0].Action != ActionDelete {
-		t.Errorf("expected delete, got %s", cs.Changes[0].Action)
-	}
-	if cs.Changes[0].LiveID != 2 {
-		t.Errorf("expected LiveID 2 (mail2), got %d", cs.Changes[0].LiveID)
-	}
-}
-
-func TestCompute_PartialMode_NoStateNoDeletes(t *testing.T) {
-	// No previous state — should never delete in partial mode
-	desired := []config.Record{
-		{Name: "www", Type: "A", Content: "192.0.2.1", TTL: 300},
-	}
-	live := []LiveRecord{
-		{ID: 1, Name: "www", Type: "A", Content: "192.0.2.1", TTL: 300},
-		{ID: 2, Name: "other", Type: "A", Content: "192.0.2.99", TTL: 3600},
-	}
-
-	cs := Compute("example.com", config.ManagePartial, desired, live, nil)
-
-	if cs.HasChanges() {
-		t.Errorf("expected no changes without state, got %d", len(cs.Changes))
-	}
-}
-
-func TestCompute_PartialMode_StateRecordAlreadyGoneFromLive(t *testing.T) {
-	// Record was in state but already deleted from live DNS (e.g., manually)
-	// Should not error or produce a change
-	desired := []config.Record{
-		{Name: "www", Type: "A", Content: "192.0.2.1", TTL: 300},
-	}
-	live := []LiveRecord{
-		{ID: 1, Name: "www", Type: "A", Content: "192.0.2.1", TTL: 300},
-	}
-	prevState := []state.Record{
-		{Name: "www", Type: "A", Content: "192.0.2.1", TTL: 300},
-		{Name: "gone", Type: "A", Content: "192.0.2.99", TTL: 300},
-	}
-
-	cs := Compute("example.com", config.ManagePartial, desired, live, prevState)
-
-	if cs.HasChanges() {
-		t.Errorf("expected no changes (gone record not in live), got %d", len(cs.Changes))
 	}
 }
 
@@ -225,7 +111,7 @@ func TestCompute_MultiValueType_CreatesInsteadOfUpdating(t *testing.T) {
 		{ID: 1, Name: "test", Type: "TXT", Content: "first-value", TTL: 3600},
 	}
 
-	cs := Compute("example.com", config.ManagePartial, desired, live, nil)
+	cs := Compute("example.com", desired, live)
 
 	if len(cs.Changes) != 1 {
 		t.Fatalf("expected 1 change, got %d", len(cs.Changes))
@@ -239,7 +125,6 @@ func TestCompute_MultiValueType_CreatesInsteadOfUpdating(t *testing.T) {
 }
 
 func TestCompute_SingleValueType_UpdatesContent(t *testing.T) {
-	// Changing an A record's content should UPDATE, not create a second one
 	desired := []config.Record{
 		{Name: "www", Type: "A", Content: "192.0.2.2", TTL: 300},
 	}
@@ -247,7 +132,7 @@ func TestCompute_SingleValueType_UpdatesContent(t *testing.T) {
 		{ID: 1, Name: "www", Type: "A", Content: "192.0.2.1", TTL: 300},
 	}
 
-	cs := Compute("example.com", config.ManagePartial, desired, live, nil)
+	cs := Compute("example.com", desired, live)
 
 	if len(cs.Changes) != 1 {
 		t.Fatalf("expected 1 change, got %d", len(cs.Changes))
@@ -258,8 +143,6 @@ func TestCompute_SingleValueType_UpdatesContent(t *testing.T) {
 }
 
 func TestCompute_CAAContentNormalization(t *testing.T) {
-	// DNSimple returns CAA content with quotes around the value,
-	// config does not. These should match as identical.
 	desired := []config.Record{
 		{Name: "test", Type: "CAA", Content: "0 issue letsencrypt.org", TTL: 3600},
 	}
@@ -267,46 +150,46 @@ func TestCompute_CAAContentNormalization(t *testing.T) {
 		{ID: 1, Name: "test", Type: "CAA", Content: "0 issue \"letsencrypt.org\"", TTL: 3600},
 	}
 
-	cs := Compute("example.com", config.ManagePartial, desired, live, nil)
+	cs := Compute("example.com", desired, live)
 
 	if cs.HasChanges() {
 		t.Errorf("expected no changes (CAA content should normalize quotes), got %d", len(cs.Changes))
 	}
 }
 
-func TestCompute_FullMode_ProtectsSOA(t *testing.T) {
+func TestCompute_ProtectsSOA(t *testing.T) {
 	desired := []config.Record{}
 	live := []LiveRecord{
 		{ID: 1, Name: "", Type: "SOA", Content: "ns1.dnsimple.com admin.example.com", TTL: 3600},
 	}
 
-	cs := Compute("example.com", config.ManageFull, desired, live, nil)
+	cs := Compute("example.com", desired, live)
 
 	if cs.HasChanges() {
 		t.Errorf("SOA should not be deleted, got %d changes", len(cs.Changes))
 	}
 }
 
-func TestCompute_FullMode_ProtectsApexNS(t *testing.T) {
+func TestCompute_ProtectsApexNS(t *testing.T) {
 	desired := []config.Record{}
 	live := []LiveRecord{
 		{ID: 1, Name: "", Type: "NS", Content: "ns1.dnsimple.com", TTL: 3600},
 	}
 
-	cs := Compute("example.com", config.ManageFull, desired, live, nil)
+	cs := Compute("example.com", desired, live)
 
 	if cs.HasChanges() {
 		t.Errorf("apex NS should not be deleted, got %d changes", len(cs.Changes))
 	}
 }
 
-func TestCompute_FullMode_AllowsNonApexNSDelete(t *testing.T) {
+func TestCompute_AllowsNonApexNSDelete(t *testing.T) {
 	desired := []config.Record{}
 	live := []LiveRecord{
 		{ID: 1, Name: "sub", Type: "NS", Content: "ns1.other.com", TTL: 3600},
 	}
 
-	cs := Compute("example.com", config.ManageFull, desired, live, nil)
+	cs := Compute("example.com", desired, live)
 
 	if len(cs.Changes) != 1 {
 		t.Fatalf("expected 1 change, got %d", len(cs.Changes))
@@ -325,7 +208,7 @@ func TestCompute_MultipleMXRecords(t *testing.T) {
 		{ID: 1, Name: "", Type: "MX", Content: "mail1.example.com", TTL: 3600, Priority: 10},
 	}
 
-	cs := Compute("example.com", config.ManagePartial, desired, live, nil)
+	cs := Compute("example.com", desired, live)
 
 	if len(cs.Changes) != 1 {
 		t.Fatalf("expected 1 change (create mail2), got %d", len(cs.Changes))
@@ -345,7 +228,7 @@ func TestCompute_MixedChanges(t *testing.T) {
 		{ID: 2, Name: "old", Type: "A", Content: "192.0.2.99", TTL: 3600},
 	}
 
-	cs := Compute("example.com", config.ManageFull, desired, live, nil)
+	cs := Compute("example.com", desired, live)
 
 	creates, updates, deletes := 0, 0, 0
 	for _, c := range cs.Changes {

@@ -23,7 +23,7 @@ _sip._tcp IN SRV 10 60 5060 sip.example.com.
 sub  IN  NS    ns1.example.com.
 @    IN  CAA   0 issue "letsencrypt.org"
 `)
-	cfg, err := ParseBind(data, ManageFull)
+	cfg, err := ParseBind(data)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -33,9 +33,6 @@ sub  IN  NS    ns1.example.com.
 	zone := cfg.Zones[0]
 	if zone.Zone != "example.com" {
 		t.Errorf("expected zone example.com, got %s", zone.Zone)
-	}
-	if zone.Manage != ManageFull {
-		t.Errorf("expected manage full, got %s", zone.Manage)
 	}
 
 	// Should have all records except SOA
@@ -60,7 +57,7 @@ _sip._tcp IN SRV 5 60 5060 sip.example.com.
 @    IN  CAA   0 issue "letsencrypt.org"
 blog IN  CNAME www.example.com.
 `)
-	cfg, err := ParseBind(data, ManagePartial)
+	cfg, err := ParseBind(data)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -115,25 +112,9 @@ example.com.  IN  A  192.0.2.1
 @             IN  A  192.0.2.2
 `)
 	// Both resolve to apex A records — validation rejects duplicate single-value records
-	_, err := ParseBind(data, ManagePartial)
+	_, err := ParseBind(data)
 	if err == nil {
 		t.Fatal("expected error for duplicate apex A records")
-	}
-}
-
-func TestParseBind_DefaultManageMode(t *testing.T) {
-	data := []byte(`
-$ORIGIN example.com.
-$TTL 3600
-
-www  IN  A  192.0.2.1
-`)
-	cfg, err := ParseBind(data, "")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if cfg.Zones[0].Manage != ManagePartial {
-		t.Errorf("expected default manage mode partial, got %s", cfg.Zones[0].Manage)
 	}
 }
 
@@ -142,7 +123,7 @@ func TestParseBind_NoOrigin(t *testing.T) {
 $TTL 3600
 www  IN  A  192.0.2.1
 `)
-	_, err := ParseBind(data, ManageFull)
+	_, err := ParseBind(data)
 	if err == nil {
 		t.Fatal("expected error for missing origin")
 	}
@@ -156,7 +137,7 @@ $TTL 3600
 @  IN  SOA  ns1.example.com. admin.example.com. 2024010101 3600 900 604800 86400
 `)
 	// SOA is skipped, so the zone has 0 records — this is valid (no records to manage)
-	cfg, err := ParseBind(data, ManageFull)
+	cfg, err := ParseBind(data)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -173,7 +154,7 @@ $TTL 3600
 sub.domain  IN  A  192.0.2.1
 deep.sub.domain  IN  A  192.0.2.2
 `)
-	cfg, err := ParseBind(data, ManagePartial)
+	cfg, err := ParseBind(data)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -202,7 +183,7 @@ www  IN  A  192.0.2.1
 	if err := os.WriteFile(path, content, 0644); err != nil {
 		t.Fatal(err)
 	}
-	cfg, err := LoadBind(path, ManageFull)
+	cfg, err := LoadBind(path)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -215,7 +196,7 @@ www  IN  A  192.0.2.1
 }
 
 func TestLoadBind_FileNotFound(t *testing.T) {
-	_, err := LoadBind("/nonexistent/path/test.zone", ManageFull)
+	_, err := LoadBind("/nonexistent/path/test.zone")
 	if err == nil {
 		t.Fatal("expected error for missing file")
 	}

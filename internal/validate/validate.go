@@ -172,14 +172,13 @@ func validateChangeset(cs diff.Changeset, live []diff.LiveRecord) []Issue {
 			issues = append(issues, validateContent(cs.Zone, recordID, r.Type, r.Content, r.Priority)...)
 
 		case diff.ActionDelete:
-			// Warn when deleting in full mode to make deletions visible
-			if cs.Manage == "full" && ch.Current != nil {
+			if ch.Current != nil {
 				recordID := fmt.Sprintf("%s %s", displayName(ch.Current.Name), ch.Current.Type)
 				issues = append(issues, Issue{
 					Severity: SeverityWarning,
 					Zone:     cs.Zone,
 					Record:   recordID,
-					Message:  fmt.Sprintf("will be deleted (full management mode) — content: `%s`", ch.Current.Content),
+					Message:  fmt.Sprintf("will be deleted — content: `%s`", ch.Current.Content),
 				})
 			}
 		}

@@ -1,8 +1,7 @@
 zones:
   - zone: dnsync.net
-    manage: partial
     records:
-      # A record — updated IP from 192.0.2.2 → 192.0.2.3
+      # A record
       - name: test
         type: A
         content: 192.0.2.3
@@ -20,7 +19,7 @@ zones:
         content: test.dnsync.net
         ttl: 3600
 
-      # MX records — removed mail2, kept mail1
+      # MX record
       - name: test
         type: MX
         content: mail1.dnsync.net
@@ -62,8 +61,26 @@ zones:
         content: "0 issue letsencrypt.org"
         ttl: 3600
 
-      # NEW: A record for api subdomain
+      # A record for api subdomain
       - name: api-test
         type: A
         content: 198.51.100.1
         ttl: 300
+
+      # NS delegation for zonefile.dnsync.net (BIND-managed subzone)
+      - name: zonefile
+        type: NS
+        content: ns1.dnsimple-edge.com
+        ttl: 3600
+      - name: zonefile
+        type: NS
+        content: ns2.dnsimple-edge.net
+        ttl: 3600
+      - name: zonefile
+        type: NS
+        content: ns3.dnsimple-edge.io
+        ttl: 3600
+      - name: zonefile
+        type: NS
+        content: ns4.dnsimple-edge.org
+        ttl: 3600

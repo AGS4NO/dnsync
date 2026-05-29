@@ -1,6 +1,5 @@
 zones:
   - zone: example.com
-    manage: full
     records:
       - name: "@"
         type: A

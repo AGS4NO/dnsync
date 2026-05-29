@@ -6,15 +6,18 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/ags4no/dnsync/internal/config"
 	"github.com/ags4no/dnsync/internal/diff"
 )
 
-// CommentMarker is embedded in PR comments so we can find and update them.
-const CommentMarker = "<!-- dnsync-plan -->"
+// CommentMarker returns the HTML marker embedded in PR comments to find and update them.
+// Each config file gets its own marker so multiple configs produce separate comments.
+func CommentMarker(configFile string) string {
+	return fmt.Sprintf("<!-- dnsync-plan:%s -->", configFile)
+}
 
 // Summary holds the formatted plan for all zones.
 type Summary struct {
+	ConfigFile string
 	Zones      []ZoneSummary
 	HasChanges bool
 }
@@ -22,18 +25,16 @@ type Summary struct {
 // ZoneSummary holds the formatted plan for a single zone.
 type ZoneSummary struct {
 	Zone       string
-	Manage     config.ManageMode
 	Changeset  diff.Changeset
 	HasChanges bool
 }
 
 // NewSummary creates a Summary from a list of changesets.
-func NewSummary(changesets []diff.Changeset) Summary {
-	s := Summary{}
+func NewSummary(configFile string, changesets []diff.Changeset) Summary {
+	s := Summary{ConfigFile: configFile}
 	for _, cs := range changesets {
 		zs := ZoneSummary{
 			Zone:       cs.Zone,
-			Manage:     cs.Manage,
 			Changeset:  cs,
 			HasChanges: cs.HasChanges(),
 		}
@@ -49,8 +50,8 @@ func NewSummary(changesets []diff.Changeset) Summary {
 func FormatMarkdown(summary Summary) string {
 	var b strings.Builder
 
-	b.WriteString(CommentMarker)
-	b.WriteString("\n## DNS Change Plan\n\n")
+	b.WriteString(CommentMarker(summary.ConfigFile))
+	b.WriteString(fmt.Sprintf("\n## DNS Change Plan — `%s`\n\n", summary.ConfigFile))
 
 	if !summary.HasChanges {
 		b.WriteString("No DNS changes detected.\n")
@@ -58,7 +59,7 @@ func FormatMarkdown(summary Summary) string {
 	}
 
 	for _, zs := range summary.Zones {
-		b.WriteString(fmt.Sprintf("### %s (%s management)\n\n", zs.Zone, zs.Manage))
+		b.WriteString(fmt.Sprintf("### %s\n\n", zs.Zone))
 
 		if !zs.HasChanges {
 			b.WriteString("No changes.\n\n")
@@ -102,7 +103,7 @@ func FormatText(summary Summary) string {
 	}
 
 	for _, zs := range summary.Zones {
-		b.WriteString(fmt.Sprintf("Zone: %s (%s)\n", zs.Zone, zs.Manage))
+		b.WriteString(fmt.Sprintf("Zone: %s\n", zs.Zone))
 
 		if !zs.HasChanges {
 			b.WriteString("  No changes.\n")

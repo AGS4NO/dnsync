@@ -1,6 +1,5 @@
 zones:
   - zone: example.com
-    manage: partial
     records:
       - name: api
         type: A

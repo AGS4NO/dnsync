@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	gh "github.com/google/go-github/v60/github"
-	"github.com/ags4no/dnsync/internal/plan"
 )
 
 // Client wraps the GitHub API client for PR comment operations.
@@ -49,10 +48,10 @@ func NewClientFromEnv() (*Client, error) {
 }
 
 // UpsertPlanComment creates or updates a PR comment containing the DNS change plan.
-// It looks for an existing comment with the dnsync marker and updates it, or creates a new one.
-func (c *Client) UpsertPlanComment(ctx context.Context, prNumber int, body string) error {
+// It looks for an existing comment with the given marker and updates it, or creates a new one.
+func (c *Client) UpsertPlanComment(ctx context.Context, prNumber int, body string, marker string) error {
 	// Look for existing comment
-	existingID, err := c.findExistingComment(ctx, prNumber)
+	existingID, err := c.findExistingComment(ctx, prNumber, marker)
 	if err != nil {
 		return fmt.Errorf("searching for existing comment: %w", err)
 	}
@@ -76,7 +75,7 @@ func (c *Client) UpsertPlanComment(ctx context.Context, prNumber int, body strin
 	return nil
 }
 
-func (c *Client) findExistingComment(ctx context.Context, prNumber int) (int64, error) {
+func (c *Client) findExistingComment(ctx context.Context, prNumber int, marker string) (int64, error) {
 	opts := &gh.IssueListCommentsOptions{
 		ListOptions: gh.ListOptions{PerPage: 100},
 	}
@@ -88,7 +87,7 @@ func (c *Client) findExistingComment(ctx context.Context, prNumber int) (int64, 
 		}
 
 		for _, comment := range comments {
-			if comment.Body != nil && strings.Contains(*comment.Body, plan.CommentMarker) {
+			if comment.Body != nil && strings.Contains(*comment.Body, marker) {
 				return *comment.ID, nil
 			}
 		}

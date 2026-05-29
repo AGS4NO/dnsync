@@ -1,5 +1,5 @@
 name: 'dnsync'
-description: 'Manage DNS records at DNSimple from a declarative YAML config file'
+description: 'Manage DNS records at DNSimple from a declarative config file (YAML or BIND zone file)'
 author: 'ags4no'
 
 branding:
@@ -19,18 +19,9 @@ inputs:
   config-format:
     description: 'Config file format: "yaml" for YAML config, "bind" for BIND zone file'
     default: 'yaml'
-  manage-mode:
-    description: 'Zone management mode when using BIND format: "partial" or "full" (ignored for YAML format)'
-    default: 'partial'
   mode:
-    description: '"plan" to preview changes, "apply" to execute, "reconcile" to clean up orphaned records'
+    description: '"plan" to preview changes, "apply" to execute'
     default: 'plan'
-  state-file:
-    description: 'Path to the state file that tracks managed records'
-    default: '.dnsync.state.json'
-  audit-file:
-    description: 'Path to the audit log that records change history and zone snapshots'
-    default: '.dnsync.audit.json'
 
 runs:
   using: 'docker'
@@ -40,7 +31,4 @@ runs:
     INPUT_DNSIMPLE_ACCOUNT_ID: ${{ inputs.dnsimple-account-id }}
     INPUT_CONFIG_FILE: ${{ inputs.config-file }}
     INPUT_CONFIG_FORMAT: ${{ inputs.config-format }}
-    INPUT_MANAGE_MODE: ${{ inputs.manage-mode }}
     INPUT_MODE: ${{ inputs.mode }}
-    INPUT_STATE_FILE: ${{ inputs.state-file }}
-    INPUT_AUDIT_FILE: ${{ inputs.audit-file }}
