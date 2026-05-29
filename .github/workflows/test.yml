@@ -7,7 +7,6 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
   pull-requests: write
 
 jobs:
@@ -42,9 +41,6 @@ jobs:
           dnsimple-account-id: ${{ secrets.DNSIMPLE_ACCOUNT_ID }}
           config-file: dns.zone
           config-format: bind
-          manage-mode: partial
-          state-file: .dnsync.bind.state.json
-          audit-file: .dnsync.bind.audit.json
           mode: plan
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -55,8 +51,6 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v6
-        with:
-          token: ${{ secrets.GH_PAT }}
       - name: Apply YAML config
         uses: ./
         with:
@@ -73,16 +67,6 @@ jobs:
           dnsimple-account-id: ${{ secrets.DNSIMPLE_ACCOUNT_ID }}
           config-file: dns.zone
           config-format: bind
-          manage-mode: partial
-          state-file: .dnsync.bind.state.json
-          audit-file: .dnsync.bind.audit.json
           mode: apply
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Commit state and audit files
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          sudo chown runner:runner .dnsync* 2>/dev/null || true
-          git add -f .dnsync.state.json .dnsync.audit.json .dnsync.bind.state.json .dnsync.bind.audit.json 2>/dev/null || true
-          git diff --cached --quiet || (git commit -m "chore: update dnsync state and audit log [skip ci]" && git push)

@@ -6,9 +6,9 @@ A GitHub Action that manages DNS records at [DNSimple](https://dnsimple.com) fro
 
 - **Declarative DNS**: Define all your DNS records in a YAML file or BIND zone file
 - **Multi-zone support**: Manage multiple DNS zones from one config file
-- **Full or partial management**: Choose whether dnsync owns the entire zone or only manages specific records
+- **Full zone management**: dnsync owns the entire zone — records not in your config are deleted (except SOA and apex NS)
 - **Plan/apply workflow**: Preview changes as PR comments, apply on merge to main
-- **Safe defaults**: Partial management mode by default, immutable records (SOA, apex NS) are never deleted
+- **Safe by default**: Immutable records (SOA, apex NS) are never deleted
 
 ## Quick Start
 
@@ -19,7 +19,6 @@ Add a `dns.yaml` to your repository:
 ```yaml
 zones:
   - zone: example.com
-    manage: full
     records:
       - name: "@"
         type: A
@@ -34,14 +33,6 @@ zones:
         content: mail.example.com
         ttl: 3600
         priority: 10
-
-  - zone: staging.example.com
-    manage: partial
-    records:
-      - name: api
-        type: A
-        content: 203.0.113.5
-        ttl: 300
 ```
 
 ### 2. Set up the GitHub Action workflow
@@ -59,7 +50,6 @@ on:
     paths: [dns.yaml]
 
 permissions:
-  contents: write       # Required for committing state file after apply
   pull-requests: write
 
 jobs:
@@ -83,20 +73,6 @@ In your repository settings, add:
 - `DNSIMPLE_TOKEN`: Your DNSimple API token
 - `DNSIMPLE_ACCOUNT_ID`: Your DNSimple account ID
 
-### Branch protection and state file commits
-
-After each `apply`, dnsync commits updated state and audit files back to the repository. If your repository has branch protection rules or rulesets that restrict direct pushes to `main` (e.g., required status checks, requiring pull requests), the default `GITHUB_TOKEN` will not have permission to push these commits.
-
-To fix this, create a **fine-grained personal access token** (PAT) with **Contents: Read and write** permission scoped to your repository, add it as a repository secret (e.g., `GH_PAT`), and pass it to the checkout step in your apply job:
-
-```yaml
-- uses: actions/checkout@v4
-  with:
-    token: ${{ secrets.GH_PAT }}
-```
-
-This allows the state file commit to bypass branch protection rules. If your repository does not have branch protection enabled, the default `GITHUB_TOKEN` is sufficient and no PAT is needed.
-
 ## Configuration Reference
 
 ### Top-level
@@ -107,45 +83,14 @@ This allows the state file commit to bypass branch protection rules. If your rep
 
 ### Zone Configuration
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `zone` | string | | Domain name (required) |
-| `manage` | string | `partial` | Management mode: `full` or `partial` |
-| `records` | list | | List of DNS records (required) |
+| Field | Type | Description |
+|-------|------|-------------|
+| `zone` | string | Domain name (required) |
+| `records` | list | List of DNS records (required) |
 
-### Management Modes
+All zones are fully managed. Records in the zone that are not in your config will be deleted on the next apply (except SOA and apex NS records, which are always protected).
 
-| Mode | Records in file & zone | Records only in file | Records only in zone |
-|------|----------------------|---------------------|---------------------|
-| `full` | Update if different | Create | **Delete** |
-| `partial` | Update if different | Create | Leave alone (unless previously managed) |
-
-#### Full mode
-
-Use `full` when dnsync should be the **single source of truth** for the entire zone. Any record in the zone that is not in your config file will be deleted on the next apply (except SOA and apex NS records, which are always protected).
-
-This is the right choice when:
-- dnsync is the only tool managing this zone
-- You want strict enforcement — no manual edits should persist
-- You want a complete, auditable record of every DNS entry in git
-
-**Warning**: If other tools or team members manage records in this zone outside of dnsync, `full` mode will delete their records.
-
-#### Partial mode
-
-Use `partial` when dnsync should only manage **specific records** in the zone, leaving everything else untouched. dnsync tracks which records it has previously applied via a [state file](#state-tracking), so it can distinguish between:
-
-- **Records it manages** — created, updated, or deleted based on your config
-- **Records it doesn't manage** — left completely alone, even if dnsync has never seen them
-
-This is the right choice when:
-- Other tools or team members also manage records in this zone
-- You only want to automate a subset of your DNS records
-- You want a safer default that won't accidentally delete anything unexpected
-
-When you remove a record from your config in partial mode, dnsync checks the state file and deletes it if it was previously managed. Records that were never managed by dnsync are never touched.
-
-On the first run (no state file), partial mode will only create and update — never delete — until the state file is established.
+**Important**: Make sure your config includes all records you want to keep. Any record not listed will be removed.
 
 ### Record Configuration
 
@@ -236,7 +181,6 @@ Set `config-format: bind` and point `config-file` to your zone file:
     dnsimple-account-id: ${{ secrets.DNSIMPLE_ACCOUNT_ID }}
     config-file: dns.zone
     config-format: bind
-    manage-mode: partial
     mode: ${{ github.event_name == 'push' && 'apply' || 'plan' }}
   env:
     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -246,76 +190,38 @@ Set `config-format: bind` and point `config-file` to your zone file:
 
 - The zone name is extracted from the `$ORIGIN` directive (required)
 - SOA records are ignored — dnsync does not manage SOA records
-- Management mode is set via the `manage-mode` input (default: `partial`) since BIND files have no equivalent concept
 - Each BIND file defines a single zone. For multi-zone setups, use separate files with separate action steps, or use the YAML format
 - All standard record types are supported: A, AAAA, CNAME, MX, TXT, SRV, NS, CAA
 
-### Local CLI testing with BIND format
+## Historical DNS Queries
+
+dnsync uses git history as its audit trail. Since your DNS config is checked into the repository, you can use git to answer questions about DNS changes over time.
+
+### Using git history for DNS archaeology
 
 ```bash
-INPUT_CONFIG_FILE="dns.zone" INPUT_CONFIG_FORMAT="bind" INPUT_MANAGE_MODE="partial" INPUT_MODE=plan ./dnsync
+# Show all changes to DNS config
+git log --oneline dns.yaml
+
+# Show the DNS config at a specific point in time
+git show HEAD~5:dns.yaml
+
+# Show the config on a specific date
+git log --until="2026-04-15" -1 --format="%H" | xargs -I{} git show {}:dns.yaml
+
+# Show what changed in a specific commit
+git show <commit-sha> -- dns.yaml
 ```
 
-## State Tracking
+### AI-assisted DNS management
 
-dnsync uses a state file (`.dnsync.state.json`) to track which records it has previously applied. The state file is automatically committed and pushed to the repo after each successful `apply` run. **You should commit this file to your repo** and not add it to `.gitignore`.
+AI agents (Claude, GitHub Copilot, etc.) can use git history to answer natural language queries about your DNS:
 
-The state file is primarily used by [partial mode](#partial-mode) to distinguish between records dnsync manages and records it should leave alone. In full mode, the state file is maintained for consistency but is not required for correct behavior.
+- **"Restore my zone to April 15"** — the agent runs `git log` to find the config at that date, then edits `dns.yaml` to match. You commit and merge to apply.
+- **"When was the www record last changed?"** — the agent runs `git log -p dns.yaml` and searches for changes to the www record.
+- **"What did the MX records look like before the April 18th change?"** — the agent checks out the config just before that date.
 
-## Audit Log
-
-dnsync maintains an audit log (`.dnsync.audit.json`) that records the full history of DNS changes. After each `apply` or `reconcile`, an entry is appended containing:
-
-- **Timestamp** — when the changes were applied
-- **Changes** — every create, update, and delete with old and new values
-- **Zone snapshot** — the complete state of the zone after the changes
-
-The audit log is committed to the repo alongside the state file, providing a git-tracked history of your DNS infrastructure.
-
-### AI-Powered Zone Management
-
-The audit log is designed to be read by AI agents (Claude, GitHub Copilot, etc.) to answer natural language queries about your DNS history. Example prompts:
-
-- **"Restore my zone to 2026-04-15"** — the agent reads the audit log, finds the snapshot at that date, and edits `dns.yaml` to match that state. You then commit and merge to apply.
-- **"When was the last time the www record was updated?"** — the agent searches the audit log for changes affecting the `www` record and reports the timestamps and details.
-- **"Show me all changes made to dnsync.net in the last month"** — the agent filters entries by date range and summarizes the changes.
-- **"What did the MX records look like before the April 18th change?"** — the agent finds the snapshot just before that date and reports the MX records.
-
-The audit file uses a self-documenting JSON format with a `_description` field explaining its purpose, so AI agents can understand the file without additional context.
-
-### Audit Log Format
-
-```json
-{
-  "_description": "dnsync audit log — records all DNS changes...",
-  "entries": [
-    {
-      "timestamp": "2026-04-19T15:30:00Z",
-      "action": "apply",
-      "zones": {
-        "dnsync.net": {
-          "manage": "partial",
-          "changes": [
-            {
-              "action": "update",
-              "name": "www",
-              "type": "A",
-              "content": "192.0.2.2",
-              "ttl": 3600,
-              "old_content": "192.0.2.1",
-              "old_ttl": 3600
-            }
-          ],
-          "snapshot": [
-            {"name": "www", "type": "A", "content": "192.0.2.2", "ttl": 3600},
-            {"name": "test", "type": "TXT", "content": "dnsync-managed-record", "ttl": 3600}
-          ]
-        }
-      }
-    }
-  ]
-}
-```
+No special audit file is needed — the complete history lives in git.
 
 ## Action Inputs
 
@@ -325,10 +231,7 @@ The audit file uses a self-documenting JSON format with a `_description` field e
 | `dnsimple-account-id` | Yes | | DNSimple account ID |
 | `config-file` | No | `dns.yaml` | Path to the config file (YAML or BIND zone file) |
 | `config-format` | No | `yaml` | Config file format: `yaml` or `bind` |
-| `manage-mode` | No | `partial` | Zone management mode when using BIND format: `partial` or `full` |
-| `mode` | No | `plan` | `plan` to preview, `apply` to execute, `reconcile` to clean up orphans |
-| `state-file` | No | `.dnsync.state.json` | Path to the state tracking file |
-| `audit-file` | No | `.dnsync.audit.json` | Path to the audit log file |
+| `mode` | No | `plan` | `plan` to preview, `apply` to execute |
 
 ## Testing
 
@@ -350,7 +253,6 @@ go test -v ./...
 go test -v ./internal/config/
 go test -v ./internal/diff/
 go test -v ./internal/plan/
-go test -v ./internal/state/
 ```
 
 ### Test Coverage
@@ -371,11 +273,9 @@ go tool cover -func=coverage.out
 | Package | What's covered |
 |---------|---------------|
 | `internal/config` | YAML and BIND zone file parsing, validation, default values, error cases, record normalization |
-| `internal/diff` | Create/update/delete detection, full vs partial mode, state-based deletion in partial mode, immutable record protection, multi-value records |
+| `internal/diff` | Create/update/delete detection, immutable record protection, multi-value records |
 | `internal/plan` | Markdown and text formatting, multi-zone output, edge cases |
-| `internal/state` | State file load/save, config-to-state conversion, deterministic serialization, missing file handling |
 | `internal/validate` | Duplicate detection, CNAME conflicts, content format validation (A/AAAA/MX/SRV/CAA/CNAME), TXT normalization |
-| `internal/audit` | Audit log load/save, apply/reconcile recording, snapshot building, record history queries, snapshot-at-time queries, snapshot-to-config conversion |
 
 ### Local CLI Testing
 
@@ -393,7 +293,6 @@ go build -o dnsync .
 export INPUT_DNSIMPLE_TOKEN="your-api-token"
 export INPUT_DNSIMPLE_ACCOUNT_ID="your-account-id"
 export INPUT_CONFIG_FILE="dns.yaml"
-export INPUT_STATE_FILE=".dnsync.state.json"
 ```
 
 **Plan** — preview changes without applying:
@@ -408,26 +307,20 @@ INPUT_MODE=plan ./dnsync
 INPUT_MODE=apply ./dnsync
 ```
 
-**Reconcile** — find and remove orphaned records from previous failed runs:
-
-```bash
-INPUT_MODE=reconcile ./dnsync
-```
-
 When running locally (outside GitHub Actions), the PR comment posting will be skipped automatically since `GITHUB_REF` is not set. The plan output will still print to stdout.
-
-Note: the git commit/push of the state file will also run locally. To avoid this, you can manually save the state file and skip the commit by hitting `Ctrl+C` after "State saved" prints, or temporarily modify the state file path to a throwaway location:
-
-```bash
-INPUT_STATE_FILE="/tmp/dnsync-test-state.json" INPUT_MODE=apply ./dnsync
-```
 
 ### Testing with a Specific Config
 
 You can point to any config file, including the test fixtures:
 
 ```bash
-INPUT_CONFIG_FILE="testdata/partial_zone.yaml" INPUT_MODE=plan ./dnsync
+INPUT_CONFIG_FILE="testdata/full_zone.yaml" INPUT_MODE=plan ./dnsync
+```
+
+### Local CLI testing with BIND format
+
+```bash
+INPUT_CONFIG_FILE="dns.zone" INPUT_CONFIG_FORMAT="bind" INPUT_MODE=plan ./dnsync
 ```
 
 ### Docker Build Test
@@ -454,6 +347,7 @@ dnsync/
 │   ├── config/             # Config parsing (YAML and BIND) and validation
 │   ├── diff/               # Desired vs live record diffing
 │   ├── plan/               # Change plan formatting (markdown, text)
+│   ├── validate/           # Pre-validation of changes
 │   ├── dnsimple/           # DNSimple API client wrapper
 │   └── github/             # GitHub PR comment management
 └── testdata/               # Sample config files for testing
@@ -492,9 +386,7 @@ Most of the codebase can be developed and tested without a DNSimple account:
 - **`internal/config`** — YAML parsing and validation
 - **`internal/diff`** — Record diffing logic (fully unit tested with mock data)
 - **`internal/plan`** — Plan formatting (markdown and text output)
-- **`internal/state`** — State file management
 - **`internal/validate`** — Change validation
-- **`internal/audit`** — Audit log and history queries
 
 Only `internal/dnsimple` and `internal/github` require live API access, and integration testing is handled by the maintainers.
 

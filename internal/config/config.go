@@ -9,29 +9,17 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// ManageMode determines how a zone's records are managed.
-type ManageMode string
-
-const (
-	// ManageFull means the config file owns the entire zone.
-	// Records in the zone that are not in the config will be deleted.
-	ManageFull ManageMode = "full"
-
-	// ManagePartial means the config file only manages declared records.
-	// Records in the zone that are not in the config are left untouched.
-	ManagePartial ManageMode = "partial"
-)
-
 // Config is the top-level configuration structure.
 type Config struct {
 	Zones []ZoneConfig `yaml:"zones"`
 }
 
 // ZoneConfig represents a single DNS zone and its desired records.
+// All zones are fully managed: records not in the config will be deleted
+// (except immutable records like SOA and apex NS).
 type ZoneConfig struct {
-	Zone    string     `yaml:"zone"`
-	Manage  ManageMode `yaml:"manage"`
-	Records []Record   `yaml:"records"`
+	Zone    string   `yaml:"zone"`
+	Records []Record `yaml:"records"`
 }
 
 // Record represents a single DNS record.
@@ -92,12 +80,6 @@ func validate(cfg *Config) error {
 			return fmt.Errorf("zone[%d]: duplicate zone %q", i, z.Zone)
 		}
 		seen[z.Zone] = true
-
-		if z.Manage == "" {
-			cfg.Zones[i].Manage = ManagePartial // default to partial (safe)
-		} else if z.Manage != ManageFull && z.Manage != ManagePartial {
-			return fmt.Errorf("zone[%d] %q: manage must be %q or %q, got %q", i, z.Zone, ManageFull, ManagePartial, z.Manage)
-		}
 
 		recordKeys := make(map[string]bool)
 		for j, r := range z.Records {

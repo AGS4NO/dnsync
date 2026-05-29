@@ -10,7 +10,7 @@ import (
 func TestValidate_DuplicateCreate(t *testing.T) {
 	cs := diff.Changeset{
 		Zone:   "example.com",
-		Manage: config.ManagePartial,
+
 		Changes: []diff.Change{
 			{
 				Action: diff.ActionCreate,
@@ -44,7 +44,7 @@ func TestValidate_DuplicateCreate(t *testing.T) {
 func TestValidate_CNAMEConflict(t *testing.T) {
 	cs := diff.Changeset{
 		Zone:   "example.com",
-		Manage: config.ManagePartial,
+
 		Changes: []diff.Change{
 			{
 				Action: diff.ActionCreate,
@@ -69,7 +69,7 @@ func TestValidate_CNAMEConflict(t *testing.T) {
 func TestValidate_RecordAtCNAMEName(t *testing.T) {
 	cs := diff.Changeset{
 		Zone:   "example.com",
-		Manage: config.ManagePartial,
+
 		Changes: []diff.Change{
 			{
 				Action: diff.ActionCreate,
@@ -94,7 +94,7 @@ func TestValidate_RecordAtCNAMEName(t *testing.T) {
 func TestValidate_InvalidIPv4(t *testing.T) {
 	cs := diff.Changeset{
 		Zone:   "example.com",
-		Manage: config.ManagePartial,
+
 		Changes: []diff.Change{
 			{
 				Action: diff.ActionCreate,
@@ -115,7 +115,7 @@ func TestValidate_InvalidIPv4(t *testing.T) {
 func TestValidate_IPv6InARecord(t *testing.T) {
 	cs := diff.Changeset{
 		Zone:   "example.com",
-		Manage: config.ManagePartial,
+
 		Changes: []diff.Change{
 			{
 				Action: diff.ActionCreate,
@@ -136,7 +136,7 @@ func TestValidate_IPv6InARecord(t *testing.T) {
 func TestValidate_InvalidIPv6(t *testing.T) {
 	cs := diff.Changeset{
 		Zone:   "example.com",
-		Manage: config.ManagePartial,
+
 		Changes: []diff.Change{
 			{
 				Action: diff.ActionCreate,
@@ -157,7 +157,7 @@ func TestValidate_InvalidIPv6(t *testing.T) {
 func TestValidate_MXWithIPContent(t *testing.T) {
 	cs := diff.Changeset{
 		Zone:   "example.com",
-		Manage: config.ManagePartial,
+
 		Changes: []diff.Change{
 			{
 				Action: diff.ActionCreate,
@@ -178,7 +178,7 @@ func TestValidate_MXWithIPContent(t *testing.T) {
 func TestValidate_MXWithoutPriority(t *testing.T) {
 	cs := diff.Changeset{
 		Zone:   "example.com",
-		Manage: config.ManagePartial,
+
 		Changes: []diff.Change{
 			{
 				Action: diff.ActionCreate,
@@ -202,7 +202,7 @@ func TestValidate_MXWithoutPriority(t *testing.T) {
 func TestValidate_SRVBadContent(t *testing.T) {
 	cs := diff.Changeset{
 		Zone:   "example.com",
-		Manage: config.ManagePartial,
+
 		Changes: []diff.Change{
 			{
 				Action: diff.ActionCreate,
@@ -223,7 +223,7 @@ func TestValidate_SRVBadContent(t *testing.T) {
 func TestValidate_SRVValidContent(t *testing.T) {
 	cs := diff.Changeset{
 		Zone:   "example.com",
-		Manage: config.ManagePartial,
+
 		Changes: []diff.Change{
 			{
 				Action: diff.ActionCreate,
@@ -244,7 +244,7 @@ func TestValidate_SRVValidContent(t *testing.T) {
 func TestValidate_CAABadContent(t *testing.T) {
 	cs := diff.Changeset{
 		Zone:   "example.com",
-		Manage: config.ManagePartial,
+
 		Changes: []diff.Change{
 			{
 				Action: diff.ActionCreate,
@@ -265,7 +265,7 @@ func TestValidate_CAABadContent(t *testing.T) {
 func TestValidate_CNAMEWithIP(t *testing.T) {
 	cs := diff.Changeset{
 		Zone:   "example.com",
-		Manage: config.ManagePartial,
+
 		Changes: []diff.Change{
 			{
 				Action: diff.ActionCreate,
@@ -283,10 +283,10 @@ func TestValidate_CNAMEWithIP(t *testing.T) {
 	}
 }
 
-func TestValidate_FullModeDeleteWarning(t *testing.T) {
+func TestValidate_DeleteWarning(t *testing.T) {
 	cs := diff.Changeset{
 		Zone:   "example.com",
-		Manage: config.ManageFull,
+
 		Changes: []diff.Change{
 			{
 				Action: diff.ActionDelete,
@@ -303,17 +303,17 @@ func TestValidate_FullModeDeleteWarning(t *testing.T) {
 	result := Changesets([]diff.Changeset{cs}, live)
 
 	if !result.HasIssues() {
-		t.Error("expected warning for full mode delete")
+		t.Error("expected warning for delete")
 	}
 	if result.HasErrors() {
-		t.Error("full mode delete should be a warning, not an error")
+		t.Error("delete should be a warning, not an error")
 	}
 }
 
 func TestValidate_NoIssues(t *testing.T) {
 	cs := diff.Changeset{
 		Zone:   "example.com",
-		Manage: config.ManagePartial,
+
 		Changes: []diff.Change{
 			{
 				Action: diff.ActionCreate,

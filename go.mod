@@ -5,13 +5,13 @@ go 1.24.0
 require (
 	github.com/dnsimple/dnsimple-go v1.7.0
 	github.com/google/go-github/v60 v60.0.0
+	github.com/miekg/dns v1.1.72
 	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
-	github.com/miekg/dns v1.1.72 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
 	golang.org/x/mod v0.31.0 // indirect
 	golang.org/x/net v0.48.0 // indirect

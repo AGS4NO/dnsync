@@ -1,6 +1,5 @@
 zones:
   - zone: example.com
-    manage: full
     records:
       - name: "@"
         type: A
@@ -12,7 +11,6 @@ zones:
         ttl: 3600
 
   - zone: other.org
-    manage: partial
     records:
       - name: api
         type: A
@@ -20,7 +18,6 @@ zones:
         ttl: 300
 
   - zone: internal.dev
-    manage: full
     records:
       - name: "@"
         type: A

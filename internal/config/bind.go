@@ -10,17 +10,16 @@ import (
 
 // LoadBind reads and parses a BIND zone file from the given path.
 // The zone name is extracted from the $ORIGIN directive.
-// Since BIND files have no manage mode concept, it must be provided.
-func LoadBind(path string, manageMode ManageMode) (*Config, error) {
+func LoadBind(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("reading bind zone file: %w", err)
 	}
-	return ParseBind(data, manageMode)
+	return ParseBind(data)
 }
 
 // ParseBind parses a BIND zone file from raw bytes.
-func ParseBind(data []byte, manageMode ManageMode) (*Config, error) {
+func ParseBind(data []byte) (*Config, error) {
 	zp := dns.NewZoneParser(strings.NewReader(string(data)), "", "")
 
 	var origin string
@@ -55,15 +54,10 @@ func ParseBind(data []byte, manageMode ManageMode) (*Config, error) {
 		records[i].Name = relativeName(records[i].Name, origin)
 	}
 
-	if manageMode == "" {
-		manageMode = ManagePartial
-	}
-
 	cfg := &Config{
 		Zones: []ZoneConfig{
 			{
 				Zone:    strings.TrimSuffix(origin, "."),
-				Manage:  manageMode,
 				Records: records,
 			},
 		},

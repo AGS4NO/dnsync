@@ -10,7 +10,7 @@ import (
 
 func TestFormatMarkdown_NoChanges(t *testing.T) {
 	s := NewSummary([]diff.Changeset{
-		{Zone: "example.com", Manage: config.ManagePartial},
+		{Zone: "example.com"},
 	})
 
 	md := FormatMarkdown(s)
@@ -25,8 +25,7 @@ func TestFormatMarkdown_NoChanges(t *testing.T) {
 
 func TestFormatMarkdown_WithChanges(t *testing.T) {
 	cs := diff.Changeset{
-		Zone:   "example.com",
-		Manage: config.ManageFull,
+		Zone: "example.com",
 		Changes: []diff.Change{
 			{
 				Action: diff.ActionCreate,
@@ -56,8 +55,8 @@ func TestFormatMarkdown_WithChanges(t *testing.T) {
 	s := NewSummary([]diff.Changeset{cs})
 	md := FormatMarkdown(s)
 
-	if !strings.Contains(md, "example.com (full management)") {
-		t.Error("expected zone header with manage mode")
+	if !strings.Contains(md, "### example.com") {
+		t.Error("expected zone header")
 	}
 	if !strings.Contains(md, "**+** Create") {
 		t.Error("expected create action")
@@ -75,8 +74,7 @@ func TestFormatMarkdown_WithChanges(t *testing.T) {
 
 func TestFormatMarkdown_ApexRecordDisplaysAt(t *testing.T) {
 	cs := diff.Changeset{
-		Zone:   "example.com",
-		Manage: config.ManagePartial,
+		Zone: "example.com",
 		Changes: []diff.Change{
 			{
 				Action: diff.ActionCreate,
@@ -97,15 +95,13 @@ func TestFormatMarkdown_ApexRecordDisplaysAt(t *testing.T) {
 func TestFormatMarkdown_MultiZone(t *testing.T) {
 	changesets := []diff.Changeset{
 		{
-			Zone:   "example.com",
-			Manage: config.ManageFull,
+			Zone: "example.com",
 			Changes: []diff.Change{
 				{Action: diff.ActionCreate, Record: config.Record{Name: "www", Type: "A", Content: "1.2.3.4", TTL: 300}},
 			},
 		},
 		{
-			Zone:   "other.org",
-			Manage: config.ManagePartial,
+			Zone: "other.org",
 		},
 	}
 
@@ -125,8 +121,7 @@ func TestFormatMarkdown_MultiZone(t *testing.T) {
 
 func TestFormatText_WithChanges(t *testing.T) {
 	cs := diff.Changeset{
-		Zone:   "example.com",
-		Manage: config.ManageFull,
+		Zone: "example.com",
 		Changes: []diff.Change{
 			{
 				Action: diff.ActionCreate,

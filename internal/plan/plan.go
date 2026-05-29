@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/ags4no/dnsync/internal/config"
 	"github.com/ags4no/dnsync/internal/diff"
 )
 
@@ -22,7 +21,6 @@ type Summary struct {
 // ZoneSummary holds the formatted plan for a single zone.
 type ZoneSummary struct {
 	Zone       string
-	Manage     config.ManageMode
 	Changeset  diff.Changeset
 	HasChanges bool
 }
@@ -33,7 +31,6 @@ func NewSummary(changesets []diff.Changeset) Summary {
 	for _, cs := range changesets {
 		zs := ZoneSummary{
 			Zone:       cs.Zone,
-			Manage:     cs.Manage,
 			Changeset:  cs,
 			HasChanges: cs.HasChanges(),
 		}
@@ -58,7 +55,7 @@ func FormatMarkdown(summary Summary) string {
 	}
 
 	for _, zs := range summary.Zones {
-		b.WriteString(fmt.Sprintf("### %s (%s management)\n\n", zs.Zone, zs.Manage))
+		b.WriteString(fmt.Sprintf("### %s\n\n", zs.Zone))
 
 		if !zs.HasChanges {
 			b.WriteString("No changes.\n\n")
@@ -102,7 +99,7 @@ func FormatText(summary Summary) string {
 	}
 
 	for _, zs := range summary.Zones {
-		b.WriteString(fmt.Sprintf("Zone: %s (%s)\n", zs.Zone, zs.Manage))
+		b.WriteString(fmt.Sprintf("Zone: %s\n", zs.Zone))
 
 		if !zs.HasChanges {
 			b.WriteString("  No changes.\n")

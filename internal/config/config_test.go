@@ -10,7 +10,6 @@ func TestParse_ValidMultiZone(t *testing.T) {
 	data := []byte(`
 zones:
   - zone: example.com
-    manage: full
     records:
       - name: "@"
         type: A
@@ -21,7 +20,6 @@ zones:
         content: example.com
         ttl: 3600
   - zone: other.org
-    manage: partial
     records:
       - name: api
         type: A
@@ -38,33 +36,8 @@ zones:
 	if cfg.Zones[0].Zone != "example.com" {
 		t.Errorf("expected zone example.com, got %s", cfg.Zones[0].Zone)
 	}
-	if cfg.Zones[0].Manage != ManageFull {
-		t.Errorf("expected manage full, got %s", cfg.Zones[0].Manage)
-	}
 	if len(cfg.Zones[0].Records) != 2 {
 		t.Errorf("expected 2 records, got %d", len(cfg.Zones[0].Records))
-	}
-	if cfg.Zones[1].Manage != ManagePartial {
-		t.Errorf("expected manage partial, got %s", cfg.Zones[1].Manage)
-	}
-}
-
-func TestParse_DefaultManageMode(t *testing.T) {
-	data := []byte(`
-zones:
-  - zone: example.com
-    records:
-      - name: www
-        type: A
-        content: 192.0.2.1
-        ttl: 300
-`)
-	cfg, err := Parse(data)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if cfg.Zones[0].Manage != ManagePartial {
-		t.Errorf("expected default manage mode partial, got %s", cfg.Zones[0].Manage)
 	}
 }
 
@@ -121,22 +94,6 @@ zones:
 	_, err := Parse(data)
 	if err == nil {
 		t.Fatal("expected error for missing content")
-	}
-}
-
-func TestParse_InvalidManageMode(t *testing.T) {
-	data := []byte(`
-zones:
-  - zone: example.com
-    manage: yolo
-    records:
-      - name: www
-        type: A
-        content: 192.0.2.1
-`)
-	_, err := Parse(data)
-	if err == nil {
-		t.Fatal("expected error for invalid manage mode")
 	}
 }
 
@@ -209,7 +166,6 @@ func TestLoad_FromFile(t *testing.T) {
 	content := []byte(`
 zones:
   - zone: example.com
-    manage: full
     records:
       - name: www
         type: A
