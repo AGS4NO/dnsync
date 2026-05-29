@@ -58,7 +58,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: ags4no/dnsync@v0.1.0
+      - uses: ags4no/dnsync@v0.2.0
         with:
           dnsimple-token: ${{ secrets.DNSIMPLE_TOKEN }}
           dnsimple-account-id: ${{ secrets.DNSIMPLE_ACCOUNT_ID }}
@@ -175,7 +175,7 @@ sub     IN  NS      ns1.example.com.
 Set `config-format: bind` and point `config-file` to your zone file:
 
 ```yaml
-- uses: ags4no/dnsync@v0.1.0
+- uses: ags4no/dnsync@v0.2.0
   with:
     dnsimple-token: ${{ secrets.DNSIMPLE_TOKEN }}
     dnsimple-account-id: ${{ secrets.DNSIMPLE_ACCOUNT_ID }}
