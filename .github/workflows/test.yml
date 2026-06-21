@@ -13,7 +13,7 @@ jobs:
   unit-tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-go@v6
         with:
           go-version: '1.24'
@@ -24,7 +24,7 @@ jobs:
     needs: unit-tests
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Plan YAML config
         uses: ./
         with:
@@ -50,7 +50,7 @@ jobs:
     needs: unit-tests
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Apply YAML config
         uses: ./
         with:
